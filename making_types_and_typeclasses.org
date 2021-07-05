@@ -1,0 +1,177 @@
+#+TITLE: Making types and typeclasses
+
+* Algebraic data types intro
+You can use the ~data~ keyword to define your own types
+
+Here is the def for bool
+#+begin_src haskell
+data Bool = False | True
+#+end_src
+
+The parts after the = are the value constructors which specify the different values the type can have. The ~|~ can be read as an "or"
+
+We can define a shape like so
+#+begin_src haskell
+data Shape = Circle Float Float Float | Rectangle Float Float Float Float
+#+end_src
+
+#+RESULTS:
+
+Value constructors are actually functions! Here is what the above would be as a type printed out with ~:t~
+#+begin_src haskell
+Circle :: Float -> Float -> Float -> Shape
+Rectangle :: Float -> Float -> Float -> Float -> Shape
+#+end_src
+
+Lets get the surface area of these
+#+begin_src haskell
+:{
+surface :: Shape -> Float
+surface (Circle _ _ r) = pi * r ^ 2
+surface (Rectangle x1 y1 x2 y2) = (abs $ x2 - x1) * (abs $ y2 - y1)
+:}
+surface $ Circle 10 20 10
+#+end_src
+
+#+RESULTS:
+: 314.15927
+
+Note that we must use ~Shape~ as the type and not ~Circle~ (because that is a value not a type)
+
+Also, we can pattern match against the constructors!
+
+We can't print out the data directly yet though... We need to derive the Show typeclass
+#+begin_src haskell
+data Shape = Circle Float Float Float | Rectangle Float Float Float Float deriving (Show)
+Circle 10 20 5
+#+end_src
+
+#+RESULTS:
+: Circle 10.0 20.0 5.0
+
+Value constructors are functions so we can use currying and map and all the fancy
+#+begin_src haskell
+map (Circle 10 20) [4,5,6,6]
+#+end_src
+
+#+RESULTS:
+| Circle | 10.0 | 20.0 | 4.0 | Circle | 10.0 | 20.0 | 5.0 | Circle | 10.0 | 20.0 | 6.0 | Circle | 10.0 | 20.0 | 6.0 |
+
+Now lets simplify our code by abstracting points
+#+begin_src haskell
+:{
+data Point = Point Float Float deriving (Show)
+data Shape = Circle Point Float | Rectangle Point Point deriving (Show)
+surface :: Shape -> Float
+surface (Circle _ r) = pi * r ^ 2
+surface (Rectangle (Point x1 y1) (Point x2 y2)) = (abs $ x2 - x1) * (abs $ y2 - y1)
+:}
+surface (Rectangle (Point 0 0) (Point 100 100))
+#+end_src
+
+#+RESULTS:
+: 10000.0
+
+We can nudge our shapes by moving them x and y
+#+begin_src haskell
+:{
+nudge :: Shape -> Float -> Float -> Shape
+nudge (Circle (Point x y) r) a b = Circle (Point (x+a) (y+b)) r
+nudge (Rectangle (Point x1 y1) (Point x2 y2)) a b = Rectangle (Point (x1+a) (y1+b)) (Point (x2+a) (y2+b))
+:}
+nudge (Circle (Point 34 34) 10) 5 10
+#+end_src
+
+#+RESULTS:
+: Circle (Point 39.0 44.0) 10.0
+
+You can export all type constructors by exporting them with ~(..)~ on the end
+#+begin_src haskell
+module Shapes
+( Point(..)
+, Shape(..)
+, surface
+, nudge
+) where 
+#+end_src
+
+That basically exports Circle and Rectangle. The same as ~Shape(Circle, Rectangle)~. If you want, you can define functions that build your data type and then if you only export the data type without any constructors like ~Shape~ then you can force users of the module to only build those objects through your custom functions rather than the value constructors
+
+* Record syntax
+if we want to represent a person, we could do it like this
+#+begin_src haskell
+data Person = Person String String Int Float String String deriving (Show)
+#+end_src
+
+But then accessing the data becomes super tedious
+#+begin_src haskell
+firstName :: Person -> String
+firstName (Person firstname _ _ _ _ _) = firstname
+
+lastName :: Person -> String
+lastName (Person _ lastname _ _ _ _) = lastname
+
+age :: Person -> Int
+age (Person _ _ age _ _ _) = age
+
+height :: Person -> Float
+height (Person _ _ _ height _ _) = height
+
+phoneNumber :: Person -> String
+phoneNumber (Person _ _ _ _ number _) = number
+
+flavor :: Person -> String
+flavor (Person _ _ _ _ _ flavor) = flavor
+#+end_src
+
+This is where record syntax comes in
+#+begin_src haskell
+:{
+data Person = Person { firstName :: String
+                     , lastName :: String
+                     , age :: Int
+                     , height :: Float
+                     , phoneNumber :: String
+                     , flavor :: String
+                     } deriving (Show)
+:}
+#+end_src
+
+#+RESULTS:
+
+By doing this, haskell automatically made these functions for us: firstName, lastName, age, height, phoneNumber and flavor
+
+Record syntax also gives us nice printing
+#+begin_src haskell
+data Car = Car String String Int deriving (Show)
+Car "Ford" "Mustang" 1967
+#+end_src
+
+#+RESULTS:
+: Car "Ford" "Mustang" 1967
+
+As opposed to the following:
+#+begin_src haskell
+data Car = Car {company :: String, model :: String, year :: Int} deriving (Show)
+Car {company="Ford", model="Mustang", year=1967}
+#+end_src
+
+#+RESULTS:
+: Car {company = "Ford", model = "Mustang", year = 1967}
+
+* Type parameters
+You can have value constructors take values and make a value. You can also have type parameters take types and make a type. This is similar to c++ templates.
+
+#+begin_src haskell
+data Maybe a = Nothing | Just a
+#+end_src
+
+Here, a is the type parameter
+
+* Derived instances
+* Type synonyms
+* Recursive data structures
+* Typeclasses 102
+* A yes-no typeclass
+* The Functor typeclass
+* Kinds and some type-foo

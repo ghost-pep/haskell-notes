@@ -1,0 +1,3 @@
+#+TITLE: Haskell Notes
+
+My org-mode notes from [[http://learnyouahaskell.com/][learnyouahaskell]]

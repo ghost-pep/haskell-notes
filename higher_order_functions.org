@@ -1,0 +1,513 @@
+#+TITLE: Higher Order Functions
+
+Haskell has support for functions that take functions as input or return functions as output. These are called higher order functions
+
+* Curried Functions
+All functions in haskell only take one parameter. We have defined functions that take multiple parameters through something called curried functions
+
+The ~max~ function actually builds a function that compares the second param to the first one (built in to the built function)
+#+begin_src haskell
+max 4 5
+(max 4) 5
+#+end_src
+
+Putting a space between things is function application. The max example above has type:
+#+begin_quote
+max :: (Ord a) => a -> a -> a
+#+end_quote
+
+Which can also be written as a function that takes an ~a~ and returns a function that takes and ~a~ and returns an ~a~:
+#+begin_quote
+max :: (Ord a) => a -> (a -> a)
+#+end_quote
+
+We can show this by the following
+#+begin_src haskell
+:{
+multThree :: (Num a) => a -> a -> a -> a
+multThree x y z = x * y * z
+multTwoWithNine = multThree 9
+multWithEighteen = multTwoWithNine 2
+:}
+multTwoWithNine 2 3
+multWithEighteen 10
+#+end_src
+
+#+RESULTS:
+: 180
+
+We can take the following function
+#+begin_src haskell
+:{
+compareWithHundred :: (Num a, Ord a) => a -> Ordering
+compareWithHundred x = compare 100 x
+:}
+#+end_src
+
+And rebrand it as
+#+begin_src haskell
+:{
+compareWithHundred :: (Num a, Ord a) => a -> Ordering
+compareWithHundred = compare 100
+:}
+#+end_src
+
+With infix functions you can return the partial function by leaving out one of the parameters and surrounding the infix function in parenthesis
+#+begin_src haskell
+:{
+isUpperAlphanum :: Char -> Bool
+isUpperAlphanum = (`elem` ['A'..'Z'])
+:}
+isUpperAlphanum 'C'
+#+end_src
+
+#+RESULTS:
+: True
+* Some higher-orderism is in order
+Functions can take functions as parameters and also return functions
+#+begin_src haskell
+:{
+applyTwice :: (a -> a) -> a -> a
+applyTwice f x = f (f x)
+:}
+applyTwice (+3) 10
+applyTwice (++ " HAHA") "HEY"
+applyTwice ("HAHA " ++) "HEY"
+applyTwice (3:) [1]
+#+end_src
+
+#+RESULTS:
+| 3 | 3 | 1 |
+
+That function takes two parameters: a function that takes an ~a~ and returns an ~a~, and a parameter ~a~
+
+Now we can implement more of the standard library!
+#+begin_src haskell
+:{
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith' _ [] _ = []
+zipWith' _ _ [] = []
+zipWith' f (x:xs) (y:ys) = f x y : zipWith' f xs ys
+:}
+zipWith' (+) [4,2,5,6] [2,6,2,3]
+zipWith' max [6,3,2,1] [7,3,1,5]
+zipWith' (++) ["foo ", "bar ", "baz "] ["fighters", "hoppers", "aldrin"]
+zipWith' (*) (replicate 5 2) [1..]
+zipWith' (zipWith' (*)) [[1,2,3],[3,5,6],[2,3,4]] [[3,2,2],[3,4,5],[5,4,3]]
+#+end_src
+
+#+RESULTS:
+|  3 |  4 |  6 |
+|  9 | 20 | 30 |
+| 10 | 12 | 12 |
+
+We can also use this to implement the ~flip~ function from the standard library
+#+begin_src haskell
+:{
+flip' :: (a -> b -> c) -> (b -> a -> c)
+flip' f = g
+    where g x y = f y x
+:}
+#+end_src
+
+That function flips arguments to a function. Because functions are curried, we can actually simplify it to the following:
+#+begin_src haskell
+:{
+flip' :: (a -> b -> c) -> b -> a -> c
+flip' f y x = f x y
+:}
+flip' zip [1,2,3,4,5] "hello"
+zipWith (flip' div) [2,2..] [10,8,6,4,2]
+#+end_src
+
+#+RESULTS:
+| 5 | 4 | 3 | 2 | 1 |
+* Maps and filters
+The ~map~ function applies a function to each element of a list like so
+#+begin_quote
+map :: (a -> b) -> [a] -> [b]
+map _ [] = []
+map f (x:xs) = f x : map f xs
+#+end_quote
+
+We can see that ~map~ is actually a part of list comprehension but it is useful when dealing with lists and with maps of maps
+#+begin_src haskell
+map (+3) [1,5,3,1,6]
+[x+3 | x <- [1,5,3,1,6]]
+#+end_src
+
+#+RESULTS:
+| 4 | 8 | 6 | 4 | 9 |
+
+~filter~ is a function that takes a predicate (a function that returns a boolean) and a list and then returns elements that match the predicate
+#+begin_quote
+filter :: (a -> Bool) -> [a] -> [a]
+filter _ [] = []
+filter p (x:xs)
+    | p x       = x : filter p xs
+    | otherwise = filter p xs
+#+end_quote
+
+We can use it by doing this
+#+begin_src haskell
+filter (`elem` ['A'..'Z']) "i lauGh At You BecAuse u r aLL the Same"
+#+end_src
+
+#+RESULTS:
+: GAYBALLS
+
+filter and map are basically the same as list comprehension. They can be used interchangeably
+
+Last time we used list comprehensions to implement quick sort but we actually can use filter to make it way more readable
+#+begin_src haskell
+:{
+quicksort :: (Ord a) => [a] -> [a]
+quicksort [] = []
+quicksort (x:xs) =
+    let smallerSorted = quicksort (filter (<=x) xs)
+        biggerSorted = quicksort (filter (>x) xs)
+    in  smallerSorted ++ [x] ++ biggerSorted
+:}
+quicksort [5,3,7,4,9,2]
+#+end_src
+
+#+RESULTS:
+| 2 | 3 | 4 | 5 | 7 | 9 |
+
+filtering and mapping let you build up answers by limiting the search space
+#+begin_src haskell
+:{
+largestDivisible :: (Integral a) => a
+largestDivisible = head (filter p [100000,99999..])
+    where p x = x `mod` 3829 == 0
+:}
+largestDivisible
+#+end_src
+
+#+RESULTS:
+: 99554
+
+more
+#+begin_src haskell
+sum (takeWhile (<10000) (filter odd (map (^2) [1..])))
+#+end_src
+
+#+RESULTS:
+: 166650
+
+You can also use list comprehensions
+#+begin_src haskell
+sum (takeWhile (<10000) [n^2 | n <- [1..], odd (n^2)])
+#+end_src
+
+#+RESULTS:
+: 166650
+
+Collatz sequences are the following
+- if the number is even, divide by two
+- if the number is odd, multiply by 3 and add one
+The sequences end when the sequence reaches 1
+
+First we define the chains:
+#+begin_src haskell
+:{
+chain :: (Integral a) => a -> [a]
+chain 1 = [1]
+chain n
+    | even n =  n:chain (n `div` 2)
+    | odd n  =  n:chain (n*3 + 1)
+:}
+chain 10
+#+end_src
+
+#+RESULTS:
+| 10 | 5 | 16 | 8 | 4 | 2 | 1 |
+
+Now we can count the number of chains of length > 15 that are within 1-100:
+#+begin_src haskell
+:{
+numLongChains :: Int
+numLongChains = length (filter isLong (map chain [1..100]))
+    where isLong xs = length xs > 15
+:}
+numLongChains
+#+end_src
+
+#+RESULTS:
+: 66
+
+We can use currying to generate a list of functions and then use the ~!!~ operator to get the function at a specified index
+#+begin_src haskell
+let listOfFuns = map (*) [0..]
+(listOfFuns !! 4) 5
+#+end_src
+
+#+RESULTS:
+: 20
+* Lambdas
+Anonymous functions! They are defined with ~\~ followed by the parameters separated by spaces. Then is an ~->~ which is followed by the function body
+
+Use parenthesis so the functions dont extend too far to the right and you can fit more content
+
+We can improve our numLongChains function with a lambda
+#+begin_src haskell
+:{
+numLongChains :: Int
+numLongChains = length (filter (\xs -> length xs > 15) (map chain [1..100]))
+:}
+#+end_src
+
+We can do this because lambdas are just expressions!
+
+Like normal functions, lambdas can take multiple expressions
+#+begin_src haskell
+zipWith (\a b -> (a * 30 + 3) / b) [5,4,3,2,1] [1,2,3,4,5]
+#+end_src
+
+#+RESULTS:
+| 153.0 | 61.5 | 31.0 | 15.75 | 6.6 |
+
+Lambdas can do pattern matching but they cannot have multiple cases! If pattern matching fails at all in a lambda, it is a runtime error.
+#+begin_src haskell
+map (\(a,b) -> a + b) [(1,2),(3,5),(6,3),(2,6),(2,5)]
+#+end_src
+
+#+RESULTS:
+| 3 | 8 | 9 | 8 | 7 |
+
+Finally, the flip function becomes more readable when using lambdas
+#+begin_src haskell
+:{
+flip' :: (a -> b -> c) -> b -> a -> c
+flip' f = \x y -> f y x
+:}
+#+end_src
+* Only folds and horses
+Folds are like maps but they reduce the list to a single value
+
+A fold takes a binary function that takes the accumulator and an element from the list and produces a new accumulator. A fold also takes an accumulator and a list
+
+We have ~foldl~ for folding left which folds from the left side of the list
+#+begin_src haskell
+:{
+sum' :: (Num a) => [a] -> a
+sum' xs = foldl (\acc x -> acc + x) 0 xs
+:}
+sum' [3,5,2,1]
+#+end_src
+
+#+RESULTS:
+: 11
+
+Because of currying we can simplify this solution a lot!
+#+begin_src haskell
+:{
+sum' :: (Num a) => [a] -> a
+sum' = foldl (+) 0
+:}
+sum' [3,5,2,1]
+#+end_src
+
+#+RESULTS:
+: 11
+
+We can also now implement elem
+#+begin_src haskell
+:{
+elem' :: (Eq a) => a -> [a] -> Bool
+elem' y ys = foldl (\acc x -> if x == y then True else acc) False ys
+:}
+#+end_src
+
+Folding to the right with ~foldr~ has the difference with the binary function of the first parameter being the value and the second being the accumulator
+
+This makes sense because the values are now being pulled from the right!
+
+Because the accumulator can be any type we can have it be a list
+#+begin_src haskell
+:{
+map' :: (a -> b) -> [a] -> [b]
+map' f xs = foldr (\x acc -> f x : acc) [] xs
+:}
+#+end_src
+
+We could also implement this with a left fold but the ~++~ operator is more expensive than the ~:~ operator
+
+Right folds work on infinite lists whereas left folds do not
+
+Folds are used for traversing a list and returning a value
+
+~foldl1~ and ~foldr1~ assume the accumulator starts as the first value in the list
+
+so ~sum~ can be implemented like
+#+begin_src haskell
+sum = foldl1 (+)
+#+end_src
+
+Only issue with that is that it will generate a runtime error with an empty list because there is no starting element
+
+Check out the power of folds!
+#+begin_src haskell
+:{
+maximum' :: (Ord a) => [a] -> a
+maximum' = foldr1 (\x acc -> if x > acc then x else acc)
+
+reverse' :: [a] -> [a]
+reverse' = foldl (\acc x -> x : acc) []
+
+product' :: (Num a) => [a] -> a
+product' = foldr1 (*)
+
+filter' :: (a -> Bool) -> [a] -> [a]
+filter' p = foldr (\x acc -> if p x then x : acc else acc) []
+
+head' :: [a] -> a
+head' = foldr1 (\x _ -> x)
+
+last' :: [a] -> a
+last' = foldl1 (\_ x -> x)
+:}
+#+end_src
+
+~scanl~ and ~scanr~ are like folds but they return a list of all intermediate values
+
+#+begin_src haskell
+scanl (+) 0 [3,5,2,1]
+#+end_src
+
+#+RESULTS:
+| 0 | 3 | 8 | 10 | 11 |
+
+#+begin_src haskell
+scanr (+) 0 [3,5,2,1]
+#+end_src
+
+#+RESULTS:
+| 11 | 8 | 3 | 1 | 0 |
+
+#+begin_src haskell
+scanl (flip (:)) [] [3,2,1]
+#+end_src
+
+#+RESULTS:
+| 3 |   |   |
+| 2 | 3 |   |
+| 1 | 2 | 3 |
+
+We can now do some fun math with square roots
+#+begin_src haskell
+:{
+sqrtSums :: Int
+sqrtSums = length (takeWhile (<1000) (scanl1 (+) (map sqrt [1..]))) + 1
+:}
+sqrtSums
+#+end_src
+
+#+RESULTS:
+: 131
+
+We used ~takeWhile~ instead of ~filter~ because ~filter~ does not work on infinite lists
+* Function application with $
+Function application is defined like the following
+#+begin_src haskell
+:{
+($) :: (a -> b) -> a -> b
+f $ x = f x
+:}
+#+end_src
+
+Why is this useful? It is right associative. The space is left associative
+#+begin_src haskell
+sqrt (3 + 4 + 9)
+sqrt $ 3 + 4 + 9
+#+end_src
+
+#+RESULTS:
+: 4.0
+
+We can now map function application over a list of functions
+#+begin_src haskell
+map ($ 3) [(4+), (10*), (^2), sqrt]
+#+end_src
+
+#+RESULTS:
+| 7.0 | 30.0 | 9.0 | 1.7320508075688772 |
+
+* Function composition
+Basically the mathematical representation of function composition
+#+begin_src haskell
+(.) :: (b -> c) -> (a -> b) -> a -> c
+f . g = \x -> f (g x)
+#+end_src
+
+Note that the type of the output of the second function must match the input type of the first function
+#+begin_src haskell
+negate . (* 3)
+#+end_src
+
+You can use this to make functions on the fly to pass to other functions. It is more concise than lambdas
+#+begin_src haskell
+map (\x -> negate (abs x)) [5,-3,-6,7,-3,2,-19,24]
+#+end_src
+
+#+RESULTS:
+| -5 | -3 | -6 | -7 | -3 | -2 | -19 | -24 |
+
+That can easily be represented using function composition:
+#+begin_src haskell
+map (negate . abs) [5,-3,-6,7,-3,2,-19,24]
+#+end_src
+
+#+RESULTS:
+| -5 | -3 | -6 | -7 | -3 | -2 | -19 | -24 |
+
+Because it is right associative we can change the following:
+#+begin_src haskell
+map (\xs -> negate (sum (tail xs))) [[1..5],[3..6],[1..7]]
+#+end_src
+
+#+RESULTS:
+| -14 | -15 | -27 |
+
+To:
+#+begin_src haskell
+map (negate . sum . tail) [[1..5],[3..6],[1..7]]
+#+end_src
+
+#+RESULTS:
+| -14 | -15 | -27 |
+
+For multiple parameters you have to evaluate until there are single parameters
+#+begin_src haskell
+sum (replicate 5 (max 6.7 8.9))
+sum . replicate 5 . max 6.7 $ 8.9
+#+end_src
+
+We can simplify a lot!
+#+begin_src haskell
+fn x = ceiling (negate (tan (cos (max 50 x))))
+fn = ceiling . negate . tan . cos . max 50
+#+end_src
+
+That is called "point free style" of function definition and it is both clean and helps you think about the function composition
+
+We used to write this
+#+begin_src haskell
+oddSquareSum :: Integer
+oddSquareSum = sum (takeWhile (<10000) (filter odd (map (^2) [1..])))
+#+end_src
+
+And now we can write it as
+#+begin_src haskell
+oddSquareSum :: Integer
+oddSquareSum = sum . takeWhile (<10000) . filter odd . map (^2) $ [1..]
+#+end_src
+
+But for readability this is probably best
+#+begin_src haskell
+oddSquareSum :: Integer
+oddSquareSum =
+    let oddSquares = filter odd $ map (^2) [1..]
+        belowLimit = takeWhile (<10000) oddSquares
+    in  sum belowLimit
+#+end_src

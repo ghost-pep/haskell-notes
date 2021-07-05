@@ -1,0 +1,482 @@
+#+TITLE: Haskell Notes
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+
+* Installing and Running Haskell
+type ~ghci~ to launch the interpreter for CLI access
+
+* Starting Out
+Simple arithmetic
+
+#+begin_src haskell
+2 + 15
+49 * 100
+1892 - 1472
+10 / 2
+#+end_src
+
+#+RESULTS:
+: 5.0
+
+Precedence is available too. Use parenthesis to order them
+#+begin_src haskell
+(50 * 100) - 4999
+50 * 100 - 4999
+50 * (100 - 4999)
+#+end_src
+
+#+RESULTS:
+: -244950
+
+~&&~ and ~||~ and ~not~ all work for boolean stuff
+#+begin_src haskell
+True && False
+not (True && True)
+#+end_src
+
+#+RESULTS:
+: False
+
+Equality through ~==~ and ~/=~
+#+begin_src haskell
+5 == 5
+5 /= 5
+#+end_src
+
+#+RESULTS:
+: False
+
+Types must match up
+#+begin_src haskell
+5 + "llama"
+#+end_src
+
+#+RESULTS:
+: In an equation for ‘it’: it = 5 + "llama"
+
+All math operations above are actually infix functions. Normally functions are prefix which can be seen through the ~succ~ successor function below
+#+begin_src haskell
+succ 8
+#+end_src
+
+#+RESULTS:
+: 9
+
+#+begin_src haskell
+min 4 7
+max 8 123
+#+end_src
+
+#+RESULTS:
+: 123
+
+Function resolution (application) has the highest precedence so the following is equivalent
+#+begin_src haskell
+succ 9 + max 5 4 + 1
+(succ 9) + (max 5 4) + 1
+#+end_src
+
+#+RESULTS:
+: 16
+
+You can do infix functions from prefix functions that take two args by using backticks
+#+begin_src haskell
+92 `div` 10
+#+end_src
+
+#+RESULTS:
+: 9
+
+Defining functions is easy
+#+begin_src haskell
+doubleMe x = x + x
+doubleMe 9
+#+end_src
+
+#+RESULTS:
+: 18
+
+#+begin_src haskell
+doubleUs x y = x * 2 + y * 2
+doubleUs 1 4
+doubleUs 28 88 + doubleMe 123
+#+end_src
+
+#+RESULTS:
+: 478
+
+We could also define doubleUs as the following
+#+begin_src haskell
+doubleUs x y = doubleMe x + doubleMe y
+doubleUs 2.3 34.2
+#+end_src
+
+#+RESULTS:
+: 73.0
+
+We have if statements too! Else statements are required because we are a declarative language
+#+begin_src haskell
+doubleSmallNumber x = if x > 100 then x else x * 2
+doubleSmallNumber 10
+#+end_src
+
+#+RESULTS:
+: 20
+
+the ~'~ is used to denote a strict function (evaluated and not lazy) as well as a function that is modified from its original
+#+begin_src haskell
+doubleSmallNumber' x = (if x > 100 then x else x*2) + 1
+doubleSmallNumber' 10
+#+end_src
+
+#+RESULTS:
+: 21
+
+Functions can be without parameters and also require a lowercase starting character
+#+begin_src haskell
+conanO'Brien = "Hi I'm Conan hehe"
+conanO'Brien
+#+end_src
+
+#+RESULTS:
+: Hi I'm Conan hehe
+
+* Lists!
+
+We also have lists, which are homogeneous (must have the same type)
+
+The ~let~ keyword lets you define a name (function with no params) within GHCI
+#+begin_src haskell
+let lostNumbers = [4,8,15,16,23,42]
+lostNumbers
+#+end_src
+
+#+RESULTS:
+| 4 | 8 | 15 | 16 | 23 | 42 |
+
+Strings are just lists of characters!
+
+We can also add lists to each other with the ~++~ operator
+#+begin_src haskell
+[1,2,3,4] ++ [9,10,11,12]
+['w','o'] ++ ['o','t']
+#+end_src
+
+#+RESULTS:
+: woot
+
+Adding lists like that fully walks the left side of the list so it can become expensive. We have the cons operator ~:~ to add single values to the start of lists
+#+begin_src haskell
+5:[1,2,3,4,5]
+#+end_src
+
+#+RESULTS:
+| 5 | 1 | 2 | 3 | 4 | 5 |
+
+To get something out of a list use ~!!~ operator
+#+begin_src haskell
+[9.4,33.2,96.2,11.2,23.25] !! 1
+#+end_src
+
+#+RESULTS:
+: 33.2
+
+Lists can be composed to have lists of lists
+#+begin_src haskell
+let b = [[1,2,3,4],[5,3,3,3],[1,2,2,3,4],[1,2,3]]
+[6,6,6]:b
+#+end_src
+
+#+RESULTS:
+| 6 | 6 | 6 |   |   |
+| 1 | 2 | 3 | 4 |   |
+| 5 | 3 | 3 | 3 |   |
+| 1 | 2 | 2 | 3 | 4 |
+| 1 | 2 | 3 |   |   |
+
+Lists have lexicographical comparison
+#+begin_src haskell
+[3,2,1] > [2,1,0]
+#+end_src
+
+#+RESULTS:
+: True
+
+~head~ returns the first element of a list
+#+begin_src haskell
+head [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: 5
+
+~tail~ gets the last part of a list after chopping off the head
+#+begin_src haskell
+tail [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+| 4 | 3 | 2 | 1 |
+
+~last~ gets the last element
+#+begin_src haskell
+last [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: 1
+
+~init~ returns everything except the last element
+#+begin_src haskell
+init [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+| 5 | 4 | 3 | 2 |
+
+~head~ and its other functions can fail if the element does not exist
+#+begin_src haskell
+head []
+#+end_src
+
+#+RESULTS:
+: *** Exception: Prelude.head: empty list
+
+~length~ returns the length of a list
+#+begin_src haskell
+length [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: 5
+
+~null~ checks if a list is empty
+#+begin_src haskell
+null []
+#+end_src
+
+#+RESULTS:
+: True
+
+~take~ will take a number of elements from the front of a list. It will take even if the list is too small. It can also take 0 if the number is 0
+#+begin_src haskell
+take 3 [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+| 5 | 4 | 3 |
+
+~drop~ is the same in reverse
+#+begin_src haskell
+drop 2 [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+| 3 | 2 | 1 |
+
+~maximum~ and ~minimum~ operate on lists to get max element or min element
+#+begin_src haskell
+maximum [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: 5
+
+~sum~ and ~product~ operate on all elements
+#+begin_src haskell
+product [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: 120
+
+~elem~ tells us if an element exists in a list
+#+begin_src haskell
+4 `elem` [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+: True
+
+Ranges allow us to generate lists easily
+#+begin_src haskell
+[1..20]
+#+end_src
+
+#+RESULTS:
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 |
+
+Letters can be ranges too
+#+begin_src haskell
+['c'..'g']
+#+end_src
+
+#+RESULTS:
+: cdefg
+
+You can also specify a step
+#+begin_src haskell
+[3,6..20]
+#+end_src
+
+#+RESULTS:
+: Prelude> [3,6,9,12,15,18]
+
+Lazy list evaluations!
+#+begin_src haskell
+take 10 [13,26..]
+#+end_src
+
+#+RESULTS:
+| 13 | 26 | 39 | 52 | 65 | 78 | 91 | 104 | 117 | 130 |
+
+~cycle~ creates infinite lists by repetition
+#+begin_src haskell
+take 12 (cycle "LOL ")
+#+end_src
+
+#+RESULTS:
+: LOL LOL LOL
+
+~repeat~ creates a list from a single element
+#+begin_src haskell
+take 5 (repeat 1)
+#+end_src
+
+#+RESULTS:
+| 1 | 1 | 1 | 1 | 1 |
+
+~replicate~ might be easier though
+#+begin_src haskell
+replicate 3 10
+#+end_src
+
+#+RESULTS:
+| 10 | 10 | 10 |
+
+List comprehension is powerful and just like math notation for setscrew
+#+begin_src haskell
+[x*2 | x <- [1..10]]
+#+end_src
+
+#+RESULTS:
+| 2 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20 |
+
+You can add predicates (conditions) to list comprehensions
+#+begin_src haskell
+[ x | x <- [50..100], x `mod` 7 == 3]
+#+end_src
+
+#+RESULTS:
+| 52 | 59 | 66 | 73 | 80 | 87 | 94 |
+
+This can lead to some very powerful comprehensions
+#+begin_src haskell
+boomBangs xs = [ if x < 10 then "BOOM!" else "BANG!" | x <- xs, odd x]
+boomBangs [7..13]
+#+end_src
+
+#+RESULTS:
+| BOOM! | BOOM! | BANG! | BANG! |
+
+You can provide multiple lists and then it does every combination of each input list
+#+begin_src haskell
+[ x*y | x <- [2,5,10], y <- [8,10,11]]
+#+end_src
+
+#+RESULTS:
+| 16 | 20 | 22 | 40 | 50 | 55 | 80 | 100 | 110 |
+
+Combine with some words and we are having some fun
+#+begin_src haskell
+let nouns = ["hobo","frog","pope"]
+let adjectives = ["lazy","grouchy","scheming"]
+[adjective ++ " " ++ noun | adjective <- adjectives, noun <- nouns]
+#+end_src
+
+#+RESULTS:
+: Prelude> ["lazy hobo","lazy frog","lazy pope","grouchy hobo","grouchy frog","grouchy pope","scheming hobo","scheming frog","scheming pope"]
+
+You can use ~_~ to remove the value of an input list element
+#+begin_src haskell
+length' xs = sum [1 | _ <- xs]
+length' "hello"
+#+end_src
+
+#+RESULTS:
+: 5
+
+We can also process strings as lists of characters
+#+begin_src haskell
+removeNonUppercase st = [ c | c <- st, c `elem` ['A'..'Z']]
+removeNonUppercase "IdontLIKEFROGS"
+#+end_src
+
+#+RESULTS:
+: ILIKEFROGS
+
+Easy way to flatten lists
+#+begin_src haskell
+let xxs = [[1,3,5,2,3,1,2,4,5],[1,2,3,4,5,6,7,8,9],[1,2,4,2,1,6,3,1,3,2,3,6]]
+[ [ x | x <- xs, even x ] | xs <- xxs]
+#+end_src
+
+#+RESULTS:
+| 2 | 2 | 4 |   |   |   |
+| 2 | 4 | 6 | 8 |   |   |
+| 2 | 4 | 2 | 6 | 2 | 6 |
+
+* Tuple Time!
+Can contain a combination of several types. Tuples also have their own type so that can help with the typesystem
+
+Tuples have a fixed length so you should build them when you want a known type
+
+~fst~ takes a pair and returns its first element
+#+begin_src haskell
+fst (8,11)
+#+end_src
+
+#+RESULTS:
+: 8
+
+And ~snd~ for second!
+#+begin_src haskell
+snd (8, 11)
+#+end_src
+
+#+RESULTS:
+: 11
+
+~zip~ takes two lists and zips them up into tuples
+#+begin_src haskell
+zip [1,2,3,4,5] [5,5,5,5,5]
+zip [1 .. 5] ["one", "two", "three", "four", "five"]
+#+end_src
+
+#+RESULTS:
+| 1 | one   |
+| 2 | two   |
+| 3 | three |
+| 4 | four  |
+| 5 | five  |
+
+You can ~zip~ finite lists with infinite lists (and also lists of differing lengths)
+#+begin_src haskell
+zip [1..] ["apple", "orange", "cherry", "mango"]
+#+end_src
+
+#+RESULTS:
+| 1 | apple  |
+| 2 | orange |
+| 3 | cherry |
+| 4 | mango  |
+
+Let's play with triangles
+#+begin_src haskell
+let triangles = [ (a,b,c) | c <- [1..10], b <- [1..10], a <- [1..10] ]
+let rightTriangles = [ (a,b,c) | c <- [1..10], b <- [1..c], a <- [1..b], a^2 + b^2 == c^2]
+let rightTriangles' = [ (a,b,c) | c <- [1..10], b <- [1..c], a <- [1..b], a^2 + b^2 == c^2, a+b+c == 24]
+rightTriangles'
+#+end_src
+
+#+RESULTS:
+: Prelude> Prelude> [(6,8,10)]

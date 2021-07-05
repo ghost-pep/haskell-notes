@@ -1,0 +1,318 @@
+#+TITLE: Syntax_in_functions
+
+* Pattern Matching
+
+Functions can be defined multiple times and then pattern match to the types or whatever you specify
+
+Pattern matching goes top to bottom with the definitions
+#+begin_src haskell
+lucky :: (Integral a) => a -> String
+lucky 7 = "LUCKY NUMBER SEVEN!"
+lucky x = "Sorry, you're out of luck, pal!"
+#+end_src
+
+We can use recursion with pattern matching to create some powerful functions
+#+begin_src haskell
+factorial :: (Integral a) => a -> a
+factorial 0 = 1
+factorial n = n * factorial (n - 1)
+#+end_src
+
+You get an error if your patterns are not exhaustive
+
+The following is how we would add two points without matching
+#+begin_src haskell
+addVectors :: (Num a) => (a, a) -> (a, a) -> (a, a)
+addVectors a b = (fst a + fst b, snd a + snd b)
+#+end_src
+
+With pattern matching we have a cleaner solution
+#+begin_src haskell
+addVectors :: (Num a) => (a, a) -> (a, a) -> (a, a)
+addVectors (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+#+end_src
+
+You can also pattern match in list comprehensions
+#+begin_src haskell
+let xs = [(1,3), (4,3), (2,4), (5,3), (5,6), (3,1)]
+[a+b | (a,b) <- xs]
+#+end_src
+
+#+RESULTS:
+: Prelude> Prelude> [4,7,6,8,11,4]
+
+A pattern like ~x:xs~ can bind the first element to ~x~ and the rest to ~xs~. A pattern like ~x:y:z:zs~ is also useful for pulling out the first 3 elements
+
+Using this we can do something like this
+#+begin_src haskell
+head' :: [a] -> a
+head' [] = error "Can't call head on an empty list, dummy!"
+head' (x:_) = x
+head' [4,5,6]
+#+end_src
+
+#+RESULTS:
+: Prelude> Prelude> 4
+
+Note the ~error~ function. It creates a runtime error and crashes the program so be weary
+
+A move advanced example
+#+begin_src haskell
+tell :: (Show a) => [a] -> String
+tell [] = "The list is empty"
+tell (x:[]) = "The list has one element: " ++ show x
+tell (x:y:[]) = "The list has two elements: " ++ show x ++ " and " ++ show y
+tell (x:y:_) = "This list is long. The first two elements are: " ++ show x ++ " and " ++ show y
+tell [5,9]
+#+end_src
+
+#+RESULTS:
+: Prelude> Prelude> Prelude> Prelude> "This list is long. The first two elements are: 5 and 9"
+
+Length function using pattern matching and some recursion
+#+begin_src haskell
+let {
+  length' :: (Num b) => [a] -> b;
+  length' [] = 0;
+  length' (_:xs) = 1 + length' xs;
+}
+length' "hello"
+#+end_src
+
+#+RESULTS:
+: 5
+
+Haskell also has ~as patterns~ which allow you to have a pattern but keep around the full reference
+#+begin_src haskell
+let {
+  capital' :: String -> String;
+  capital' "" = "Empty string, whoops!";
+  capital' all@(x:xs) = "The first letter of " ++ all ++ " is " ++ [x];
+}
+capital' "Dracula"
+#+end_src
+
+#+RESULTS:
+: The first letter of Dracula is D
+
+* Guards, guards!
+Guards let you test if a value in a function is true. They are kind of like if statements but added into the function. They are a nice alternative to big if/else trees
+#+begin_src haskell
+let {
+    bmiTell :: (RealFloat a) => a -> String;
+    bmiTell bmi
+        | bmi <= 18.5 = "You're underweight, you emo, you!"
+        | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"
+        | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"
+        | otherwise   = "You're a whale, congratulations!";
+}
+bmiTell 20
+#+end_src
+
+#+RESULTS:
+: You're supposedly normal. Pffft, I bet you're ugly!
+
+We can use guards with many parameters
+#+begin_src haskell
+let {
+    bmiTell :: (RealFloat a) => a -> a -> String;
+    bmiTell weight height
+        | weight / height ^ 2 <= 18.5 = "You're underweight, you emo, you!"
+        | weight / height ^ 2 <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"
+        | weight / height ^ 2 <= 30.0 = "You're fat! Lose some weight, fatty!"
+        | otherwise                 = "You're a whale, congratulations!";
+}
+bmiTell 85 1.90
+#+end_src
+
+#+RESULTS:
+: You're supposedly normal. Pffft, I bet you're ugly!
+
+Another example:
+#+begin_src haskell
+let {
+    max' :: (Ord a) => a -> a -> a;
+    max' a b
+        | a > b     = a
+        | otherwise = b;
+}
+max 17 3
+#+end_src
+
+#+RESULTS:
+: 17
+
+We can now make our own compare function
+#+begin_src haskell
+let {
+    myCompare :: (Ord a) => a -> a -> Ordering;
+    a `myCompare` b
+        | a > b     = GT
+        | a == b    = EQ
+        | otherwise = LT;
+}
+3 `myCompare` 2
+#+end_src
+
+#+RESULTS:
+: GT
+
+You can also use the ~where~ keyword to define variables for the function
+#+begin_src haskell
+let {
+    bmiTell :: (RealFloat a) => a -> a -> String;
+    bmiTell weight height
+        | bmi <= skinny = "You're underweight, you emo, you!"
+        | bmi <= normal = "You're supposedly normal. Pffft, I bet you're ugly!"
+        | bmi <= fat    = "You're fat! Lose some weight, fatty!"
+        | otherwise     = "You're a whale, congratulations!"
+        where bmi = weight / height ^ 2
+            skinny = 18.5
+            normal = 25.0
+            fat = 30.0;
+}
+bmiTell 100 1.90
+#+end_src
+
+#+RESULTS:
+: You're fat! Lose some weight, fatty!
+
+You can also do pattern matching in ~where~ clauses
+#+begin_src haskell
+:{
+initials :: String -> String -> String
+initials firstname lastname = [f] ++ ". " ++ [l] ++ "."
+    where
+        (f:_) = firstname
+        (l:_) = lastname
+:}
+initials "Danny" "Pagan"
+#+end_src
+
+#+RESULTS:
+: D. P.
+
+You can also define functions in ~where~ blocks
+#+begin_src haskell
+:{
+calcBmis :: (RealFloat a) => [(a, a)] -> [a]
+calcBmis xs = [bmi w h | (w, h) <- xs]
+    where bmi weight height = weight / height ^ 2
+:}
+calcBmis [(80, 1.90), (84, 1.87)]
+#+end_src
+
+#+RESULTS:
+| 22.1606648199446 | 24.021275987303035 |
+
+Where bindings can also be nested 😩
+
+* Let it be
+Lets are like ~where~ statements but they are very locally scoped
+
+They look like ~let~ followed by local scope statements followed by ~in~ and then the expression where the locally scoped statements are
+#+begin_src haskell
+:{
+cylinder :: (RealFloat a) => a -> a -> a
+cylinder r h =
+    let sideArea = 2 * pi * r * h
+        topArea = pi * r ^2
+    in  sideArea + 2 * topArea
+:}
+cylinder 2 7
+#+end_src
+
+#+RESULTS:
+: 113.09733552923255
+
+Because ~let~ statements are expressions, they can be used almost anywhere
+#+begin_src haskell
+4 * (let a = 9 in a + 1) + 2
+#+end_src
+
+#+RESULTS:
+: 42
+
+You can also make locally scoped functions
+#+begin_src haskell
+[let square x = x * x in (square 5, square 3, square 2)]
+#+end_src
+
+#+RESULTS:
+| 25 | 9 | 4 |
+
+Can separate statements with semicolons
+#+begin_src haskell
+(let a = 100; b = 200; c = 300 in a*b*c, let foo="Hey "; bar = "there!" in foo ++ bar)
+#+end_src
+
+#+RESULTS:
+| 6000000 | Hey there! |
+
+You can do ~let~ statements inside of list comprehensions and use them like predicates. The ~let~ statement's names that are defined are accessible to the part before the ~|~ and any predicates following the ~let~ statement.
+#+begin_src haskell
+:{
+calcBmis :: (RealFloat a) => [(a, a)] -> [a]
+calcBmis xs = [bmi | (w, h) <- xs, let bmi = w / h ^ 2, bmi >= 25.0]
+:}
+calcBmis [(100, 1.90), (84, 1.87)]
+#+end_src
+
+#+RESULTS:
+| 27.70083102493075 |
+* Case expressions
+Pattern matching on parameters in function definitions is actually syntactic sugar for case expressions!
+
+The two pieces of code are interchangeable
+#+begin_src haskell
+:{
+head' :: [a] -> a
+head' [] = error "No head for empty lists!"
+head' (x:_) = x
+:}
+head' ['a', 'b']
+#+end_src
+
+#+RESULTS:
+: a
+
+#+begin_src haskell
+:{
+head' :: [a] -> a
+head' xs = case xs of [] -> error "No head for empty lists!"
+                      (x:_) -> x
+:}
+head' ['a', 'b']
+#+end_src
+
+#+RESULTS:
+: a
+
+They are useful for pattern matching anywhere in code
+#+begin_src haskell
+:{
+describeList :: [a] -> String
+describeList xs = "The list is " ++ case xs of [] -> "empty."
+                                               [x] -> "a singleton list."
+                                               xs -> "a longer list."
+:}
+describeList [1,2,3,4,5]
+#+end_src
+
+#+RESULTS:
+: The list is a longer list.
+
+That could also have been defined like so:
+#+begin_src haskell
+:{
+describeList :: [a] -> String
+describeList xs = "The list is " ++ what xs
+    where what [] = "empty."
+          what [x] = "a singleton list."
+          what xs = "a longer list."
+:}
+describeList [1,2,3,4,5]
+#+end_src
+
+#+RESULTS:
+: The list is a longer list.

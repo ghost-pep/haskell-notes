@@ -1,0 +1,784 @@
+#+TITLE: Modules
+
+* Loading modules
+A module is a combination of functions, types, and typeclasses
+
+We have dealt with all of these from the Prelude module so far
+
+We can import the Data.List module and use the ~nub~ function which gets unqiue values in a list
+#+begin_src haskell
+import Data.List
+import Data.Function
+#+end_src
+
+#+RESULTS:
+
+#+begin_src haskell
+:{
+numUniques :: (Eq a) => [a] -> Int
+numUniques = length . nub
+:}
+numUniques [1,2,2,3,4,5,5]
+#+end_src
+
+#+RESULTS:
+: 5
+
+You can also import to GHCI by doing the following
+#+begin_src haskell
+:{
+:m + Data.List
+numUniques :: (Eq a) => [a] -> Int
+numUniques = length . nub
+:}
+numUniques [1,2,2,3,4,5,5]
+#+end_src
+
+#+RESULTS:
+: 5
+
+You can specify many by doing
+#+begin_src haskell
+:m + Data.List Data.Map Data.Set
+#+end_src
+
+You can selectively import functions too
+#+begin_src haskell
+import Data.List (nub, sort)
+#+end_src
+
+You can also import all except a couple which can help with conflicting names
+#+begin_src haskell
+import Data.List hiding nub
+#+end_src
+
+Also you can import modules with their own namespace
+#+begin_src haskell
+import qualified Data.Map
+Data.map.filter
+#+end_src
+
+And we can rename for simplicity
+#+begin_src haskell
+import qualified Data.Map as M
+M.filter
+#+end_src
+
+You can see the standard modules here [[https://downloads.haskell.org/~ghc/latest/docs/html/libraries/][Standard module list]]
+
+To search for functions use [[https://hoogle.haskell.org/][Hoogle]]
+
+* Data.List
+Module for lists! Let's meet some useful functions
+
+- ~intersperse~ takes an element and a list and puts the element between each element of the list
+    #+begin_src haskell
+    intersperse '.' "MONKEY"
+    #+end_src
+
+    #+RESULTS:
+    : M.O.N.K.E.Y
+- ~intercalate~ takes a list of lists and puts a list between all those lists and flattens
+  #+begin_src haskell
+intercalate " " ["hey","there","guys"]
+  #+end_src
+
+  #+RESULTS:
+  : hey there guys
+- ~transpose~ takes a 2D array of lists and transposes it
+  #+begin_src haskell
+transpose [[1,2,3],[4,5,6],[7,8,9]]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 4 | 7 |
+  | 2 | 5 | 8 |
+  | 3 | 6 | 9 |
+
+  We can use this for polynomial math
+  #+begin_src haskell
+map sum $ transpose [[0,3,5,9],[10,0,0,9],[8,5,1,-1]]
+  #+end_src
+
+  #+RESULTS:
+  | 18 | 8 | 6 | 17 |
+
+- ~foldl'~ and ~foldl1'~ are strict versions of their respective functions. They are useful for big lists where you don't want lazy evaluations
+
+  You will run into stack overflows from the lazy versions if the lists are too large
+
+- ~concat~ flattens a list of lists into just their elements
+  #+begin_src haskell
+concat ["foo","bar","car"]
+  #+end_src
+
+  #+RESULTS:
+  : foobarcar
+
+- ~concatMap~ is like doing the map first and then concating everything
+  #+begin_src haskell
+concatMap (replicate 4) [1..3]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 1 | 1 | 1 | 2 | 2 | 2 | 2 | 3 | 3 | 3 | 3 |
+
+- ~and~ takes a list of booleans and returns true if the whole list is true
+  #+begin_src haskell
+and $ map (>4) [5,6,7,8]
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+- ~or~ is the same
+  #+begin_src haskell
+or $ map (==4) [2,3,4,5,6,1]
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+- ~any~ and ~all~ take a predicate and check for it in the list
+  #+begin_src haskell
+all (`elem` ['A'..'Z']) "HEYGUYSwhatsup"
+any (`elem` ['A'..'Z']) "HEYGUYSwhatsup"
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+- ~iterate~ applies a function to a starting value to form an infinite list
+  #+begin_src haskell
+take 10 $ iterate (*2) 1
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 |
+
+- ~splitAt~ takes a number and splits the list into two with the first list having the number of elements specified
+  #+begin_src haskell
+splitAt 3 "heyman"
+  #+end_src
+
+  #+RESULTS:
+  | hey | man |
+
+- ~takeWhile~ takes a list and a predicate and returns the elements until the predicate is no longer satisfied
+  #+begin_src haskell
+takeWhile (/=' ') "This is a sentence"
+  #+end_src
+
+  #+RESULTS:
+  : This
+
+- ~dropWhile~ is the same but it returns the rest of the list once the predicate breaks
+  #+begin_src haskell
+dropWhile (/=' ') "This is a sentence"
+  #+end_src
+
+  #+RESULTS:
+  :  is a sentence
+
+- ~span~ is like ~takeWhile~ but it returns both sides of the split
+  #+begin_src haskell
+let (fw, rest) = span (/=' ') "This is a sentence" in "First word: " ++ fw ++ ", the rest:" ++ rest
+  #+end_src
+
+  #+RESULTS:
+  : First word: This, the rest: is a sentence
+
+- ~break~ is like span but the predicate is reversed so it is like ~span (not . p)~
+  #+begin_src haskell
+break (==4) [1,2,3,4,5,6,7]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 2 | 3 |   |
+  | 4 | 5 | 6 | 7 |
+
+- ~sort~ sorts a list
+  #+begin_src haskell
+sort [8,5,3,2,1,6,4,2]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 2 | 2 | 3 | 4 | 5 | 6 | 8 |
+
+- ~group~ takes a list and makes sublists if adjacent items are equal
+  #+begin_src haskell
+group [1,1,1,1,2,2,2,2,3,3,2,2,2,5,6,7]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 1 | 1 | 1 |
+  | 2 | 2 | 2 | 2 |
+  | 3 | 3 |   |   |
+  | 2 | 2 | 2 |   |
+  | 5 |   |   |   |
+  | 6 |   |   |   |
+  | 7 |   |   |   |
+
+  if you sort before grouping then you can count num appearances
+  #+begin_src haskell
+map (\l@(x:_) -> (x,length l)) . group . sort $ [1,1,1,1,2,2,2,2,3,3,2,2,2,5,6,7]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 4 |
+  | 2 | 7 |
+  | 3 | 2 |
+  | 5 | 1 |
+  | 6 | 1 |
+  | 7 | 1 |
+
+- ~inits~ and ~tails~ are like their non-plural counterparts but they yield the entire list
+  #+begin_src haskell
+inits "woot"
+  #+end_src
+
+  #+RESULTS:
+  |   | w | wo | woo | woot |
+
+  We can use this to implement a substring search
+  #+begin_src haskell
+search :: (Eq a) => [a] -> [a] -> Bool
+search needle haystack =
+    let nlen = length needle
+    in  foldl (\acc x -> if take nlen x == needle then True else acc) False (tails haystack)
+  #+end_src
+
+- ~isInfixOf~ is a substring search just like above
+  #+begin_src haskell
+"cat" `isInfixOf` "im a cat burglar"
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+- ~isPrefixOf~ and ~isSuffixOf~ searches beginning and end of lists
+  #+begin_src haskell
+"hey" `isPrefixOf` "hey there!"
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+- ~elem~ and ~notElem~ find if elements are in a list
+
+- ~partition~ takes a predicate and returns the set that is in the predicate as well as the set that is not satisfied by the predicate
+  #+begin_src haskell
+partition (`elem` ['A'..'Z']) "BOBsidneyMORGANeddy"
+  #+end_src
+
+  #+RESULTS:
+  | BOBMORGAN | sidneyeddy |
+
+- ~find~ takes a predicate and looks for the first occurance. It returns a ~Maybe~ type which we will cover later (its like Options in Rust)
+  #+begin_src haskell
+find (>4) [1,2,3,4,5,6]
+  #+end_src
+
+  #+RESULTS:
+  : Just 5
+
+- ~elemIndex~ does elem but returns the index. Returns a ~Nothing~ if nothing found
+  #+begin_src haskell
+4 `elemIndex` [1,2,3,4,5,6]
+  #+end_src
+
+  #+RESULTS:
+  : Just 3
+
+- ~elemIndices~ does elemIndex but returns a list
+  #+begin_src haskell
+' ' `elemIndices` "Where are the spaces?"
+  #+end_src
+
+  #+RESULTS:
+  | 5 | 9 | 13 |
+
+- ~findIndex~ is like find but it returns the index. ~findIndices~ is also a function here
+  #+begin_src haskell
+findIndices (`elem` ['A'..'Z']) "Where Are The Caps?"
+  #+end_src
+
+  #+RESULTS:
+  | 0 | 6 | 10 | 14 |
+
+- ~zipX~ and ~zipWithX~ cover zipping with more than two lists
+  #+begin_src haskell
+zipWith3 (\x y z -> x + y + z) [1,2,3] [4,5,2,2] [2,2,3]
+  #+end_src
+
+  #+RESULTS:
+  | 7 | 9 | 8 |
+
+- ~lines~ gets the lines of a string
+  #+begin_src haskell
+lines "first line\nsecond line\nthird line"
+  #+end_src
+
+  #+RESULTS:
+  | first line | second line | third line |
+
+- ~unlines~ is the inverse of lines
+  #+begin_src haskell
+unlines ["first line", "second line", "third line"]
+  #+end_src
+
+  #+RESULTS:
+  : first line\nsecond line\nthird line\n
+
+- ~words~ and ~unwords~ are like lines but for words
+  #+begin_src haskell
+words "hey these are the words in this sentence"
+unwords ["hey","there","mate"]
+  #+end_src
+
+  #+RESULTS:
+  : hey there mate
+
+- ~nub~ is for unique elements
+  #+begin_src haskell
+nub [1,2,3,4,3,2,1,2,3,4,3,2,1]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 2 | 3 | 4 |
+
+- ~delete~ removes first element of a pattern from list
+  #+begin_src haskell
+delete 'h' "hey there ghang!"
+  #+end_src
+
+  #+RESULTS:
+  : ey there ghang!
+
+- ~\\~ is difference like set differences
+  #+begin_src haskell
+[1..10] \\ [2,5,9]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 3 | 4 | 6 | 7 | 8 | 10 |
+
+- ~union~ is set based union
+  #+begin_src haskell
+[1..7] `union` [5..10]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+
+- ~intersect~ is set intersection
+  #+begin_src haskell
+[1..7] `intersect` [5..10]
+  #+end_src
+
+  #+RESULTS:
+  | 5 | 6 | 7 |
+
+- ~insert~ puts an element into a list in the last postition where it is still less than or equal to the last element
+  #+begin_src haskell
+insert 4 [1,3,4,4,1]
+  #+end_src
+
+  #+RESULTS:
+  | 1 | 3 | 4 | 4 | 4 | 1 |
+
+length, take, drop, splitAt, !! and replicate take ~Int~ which is historical. We have more generic equivalents through genericLength, genericTake, genericDrop, genericSplitAt, genericIndex and genericReplicate which take types with ~Num~
+
+nub, delete, union, intersect and group have more general functions of nubBy, deleteBy, unionBy, intersectBy and groupBy.
+
+Example of this would be group being equal to
+#+begin_src haskell
+groupBy (==)
+#+end_src
+
+We can see this in action here:
+#+begin_src haskell
+let values = [-4.3, -2.4, -1.2, 0.4, 2.3, 5.9, 10.5, 29.1, 5.3, -2.4, -14.5, 2.9, 2.3]
+groupBy (\x y -> (x > 0) == (y > 0)) values
+#+end_src
+
+#+RESULTS:
+| -4.3 |  -2.4 | -1.2 |      |      |     |
+|  0.4 |   2.3 |  5.9 | 10.5 | 29.1 | 5.3 |
+| -2.4 | -14.5 |      |      |      |     |
+|  2.9 |   2.3 |      |      |      |     |
+
+We can use the ~on~ from Data.Function with these to make it even more readable
+#+begin_src haskell
+groupBy ((==) `on` (> 0)) values
+#+end_src
+
+#+RESULTS:
+| -4.3 |  -2.4 | -1.2 |      |      |     |
+|  0.4 |   2.3 |  5.9 | 10.5 | 29.1 | 5.3 |
+| -2.4 | -14.5 |      |      |      |     |
+|  2.9 |   2.3 |      |      |      |     |
+
+sort, insert, maximum and minimum have generic versions which let you control the comparison: sortBy, insertBy, maximumBy and minimumBy
+
+#+begin_src haskell
+let xs = [[5,4,5,4,4],[1,2,3],[3,5,4,3],[],[2],[2,2]]
+sortBy (compare `on` length) xs
+#+end_src
+
+#+RESULTS:
+|   |   |   |   |   |
+| 2 |   |   |   |   |
+| 2 | 2 |   |   |   |
+| 1 | 2 | 3 |   |   |
+| 3 | 5 | 4 | 3 |   |
+| 5 | 4 | 5 | 4 | 4 |
+
+* Data.Char
+Processing on characters. Useful for string processing
+
+#+begin_src haskell
+import Data.Char
+#+end_src
+
+#+RESULTS:
+
+- isControl checks whether a character is a control character.
+- isSpace checks whether a character is a white-space characters. That includes spaces, tab characters, newlines, etc.
+- isLower checks whether a character is lower-cased.
+- isUpper checks whether a character is upper-cased.
+- isAlpha checks whether a character is a letter.
+- isAlphaNum checks whether a character is a letter or a number.
+- isPrint checks whether a character is printable. Control characters, for instance, are not printable.
+- isDigit checks whether a character is a digit.
+- isOctDigit checks whether a character is an octal digit.
+- isHexDigit checks whether a character is a hex digit.
+- isLetter checks whether a character is a letter.
+- isMark checks for Unicode mark characters. Those are characters that combine with preceding letters to form latters with accents. Use this if you are French.
+- isNumber checks whether a character is numeric.
+- isPunctuation checks whether a character is punctuation.
+- isSymbol checks whether a character is a fancy mathematical or currency symbol.
+- isSeparator checks for Unicode spaces and separators.
+- isAscii checks whether a character falls into the first 128 characters of the Unicode character set.
+- isLatin1 checks whether a character falls into the first 256 characters of Unicode.
+- isAsciiUpper checks whether a character is ASCII and upper-case.
+- isAsciiLower checks whether a character is ASCII and lower-case.
+
+Characters fall into their own kind of ~Ord~ called ~GeneralCategory~ which helps classify types of characters
+
+You can see it through the ~generalCategory~ function
+#+begin_src haskell
+generalCategory '3'
+#+end_src
+
+#+RESULTS:
+: DecimalNumber
+
+- toUpper converts a character to upper-case. Spaces, numbers, and the like remain unchanged.
+- toLower converts a character to lower-case.
+- toTitle converts a character to title-case. For most characters, title-case is the same as upper-case.
+- digitToInt converts a character to an Int. To succeed, the character must be in the ranges '0'..'9', 'a'..'f' or 'A'..'F'.
+- intToDigit is the inverse function of digitToInt. It takes an Int in the range of 0..15 and converts it to a lower-case character.
+- The ord and chr functions convert characters to their corresponding numbers and vice versa
+
+We can use these to make a Caesar cipher!
+#+begin_src haskell
+:{
+encode :: Int -> String -> String
+encode shift msg =
+    let ords = map ord msg
+        shifted = map (+ shift) ords
+    in  map chr shifted
+:}
+#+end_src
+
+And we can decode too
+#+begin_src haskell
+:{
+decode :: Int -> String -> String
+decode shift msg = encode (negate shift) msg
+:}
+#+end_src
+
+* Data.Map
+Maps! Skipping over the intro to why to use maps and why they are useful
+
+Maps conflict with Prelude so we do a qualified import
+#+begin_src haskell
+import qualified Data.Map as Map
+#+end_src
+
+#+RESULTS:
+
+The ~fromList~ function takes an association list (in the form of a list) and returns a map with the same associations.
+#+begin_src haskell
+Map.fromList [("betty","555-2938"),("bonnie","452-2928"),("lucille","205-2928")]
+#+end_src
+
+#+RESULTS:
+: fromList [("betty","555-2938"),("bonnie","452-2928"),("lucille","205-2928")]
+
+~Map.fromList :: (Ord k) => [(k, v)] -> Map.Map k v~ keys need to be orderable so it can build an efficient tree for indexing internally
+
+~empty~ represents an empty map
+#+begin_src haskell
+Map.empty
+#+end_src
+
+#+RESULTS:
+: fromList []
+
+~insert~ does inserts
+#+begin_src haskell
+Map.insert 5 600 . Map.insert 4 200 . Map.insert 3 100 $ Map.empty
+#+end_src
+
+#+RESULTS:
+: fromList [(3,100),(4,200),(5,600)]
+
+We can now implement our own ~fromList~
+#+begin_src haskell
+:{
+fromList' :: (Ord k) => [(k,v)] -> Map.Map k v
+fromList' = foldr (\(k,v) acc -> Map.insert k v acc) Map.empty
+:}
+#+end_src
+
+~null~ checks if a map is empty
+#+begin_src haskell
+Map.null Map.empty
+#+end_src
+
+#+RESULTS:
+: True
+
+~size~ gives the size of a map
+#+begin_src haskell
+Map.size $ Map.fromList [(1,2)]
+#+end_src
+
+#+RESULTS:
+: 1
+
+~singleton~ creates a single element map
+#+begin_src haskell
+Map.singleton 2 5
+#+end_src
+
+#+RESULTS:
+: fromList [(2,5)]
+
+~lookup~ is just like Data.List
+
+~member~ tells you if a key is in the map
+#+begin_src haskell
+Map.member 3 $ Map.fromList [(3,6),(4,3),(6,9)]
+#+end_src
+
+#+RESULTS:
+: True
+
+~map~ and ~filter~ work just like they would but on the values and not the keys
+
+~toList~ is the inverse of ~fromList~
+#+begin_src haskell
+Map.toList . Map.insert 9 2 $ Map.singleton 4 3
+#+end_src
+
+#+RESULTS:
+| 4 | 3 |
+| 9 | 2 |
+
+~keys~ and ~elems~ pull a list of keys or values respectively
+
+~fromListWith~ is like ~fromList~ but it doesn't throw out duplicates but we need to put a way to combine those duplicates
+#+begin_src haskell
+:{
+phoneBook =
+    [("betty","555-2938")
+    ,("betty","342-2492")
+    ,("bonnie","452-2928")
+    ,("patsy","493-2928")
+    ,("patsy","943-2929")
+    ,("patsy","827-9162")
+    ,("lucille","205-2928")
+    ,("wendy","939-8282")
+    ,("penny","853-2492")
+    ,("penny","555-2111")
+    ]
+phoneBookToMap :: (Ord k) => [(k, String)] -> Map.Map k String
+phoneBookToMap xs = Map.fromListWith (\number1 number2 -> number1 ++ ", " ++ number2) xs
+:}
+Map.lookup "patsy" $ phoneBookToMap phoneBook
+#+end_src
+
+#+RESULTS:
+: Just "827-9162, 943-2929, 493-2928"
+
+~insertWith~ is the same concept where we can specify what to do if the element exists in the map already
+#+begin_src haskell
+Map.insertWith (+) 3 100 $ Map.fromList [(3,4),(5,103),(6,339)]
+#+end_src
+
+#+RESULTS:
+: fromList [(3,104),(5,103),(6,339)]
+
+A full list of this module is [[https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html][here]]
+
+* Data.Set
+Sets are a cross between lists and maps. They are backed by trees just like maps so things need to be ordered
+
+Qualified import because of clashing names
+#+begin_src haskell
+import qualified Data.Set as Set
+#+end_src
+
+#+RESULTS:
+
+We can use ~fromList~ to make a set from those
+#+begin_src haskell
+:{
+text1 = "I just had an anime dream. Anime... Reality... Are they so different?"
+text2 = "The old man left his garbage can out and now his trash is all over my lawn!"
+let set1 = Set.fromList text1
+let set2 = Set.fromList text2
+:}
+set1
+#+end_src
+
+#+RESULTS:
+: fromList " .?AIRadefhijlmnorstuy"
+
+~intersection~ like maps
+#+begin_src haskell
+Set.intersection set1 set2
+#+end_src
+
+#+RESULTS:
+: fromList " adefhilmnorstuy"
+
+~difference~ to get whats in the first but not the second
+#+begin_src haskell
+Set.difference set1 set2
+#+end_src
+
+#+RESULTS:
+: fromList ".?AIRj"
+
+unique letters used in both with ~union~
+#+begin_src haskell
+Set.union set1 set2
+#+end_src
+
+#+RESULTS:
+: fromList " !.?AIRTabcdefghijlmnorstuvwy"
+
+null, size, member, empty, singleton, insert and delete all work as expected
+
+You can also check for subsets where normal is like <= and proper is like <
+#+begin_src haskell
+Set.fromList [2,3,4] `Set.isSubsetOf` Set.fromList [1,2,3,4,5]
+Set.fromList [1,2,3,4,5] `Set.isProperSubsetOf` Set.fromList [1,2,3,4,5]
+#+end_src
+
+#+RESULTS:
+: False
+
+~map~ and ~filter~ works too
+
+* Making our own modules
+You can only use exports from a module outside of the module. Internal functions are declared normally
+
+In a file called ~Geometry.hs~ we can have the ~Geometry~ module like so
+#+begin_src haskell
+module Geometry
+( sphereVolume
+, sphereArea
+, cubeVolume
+, cubeArea
+, cuboidArea
+, cuboidVolume
+) where
+
+sphereVolume :: Float -> Float
+sphereVolume radius = (4.0 / 3.0) * pi * (radius ^ 3)
+
+sphereArea :: Float -> Float
+sphereArea radius = 4 * pi * (radius ^ 2)
+
+cubeVolume :: Float -> Float
+cubeVolume side = cuboidVolume side side side
+
+cubeArea :: Float -> Float
+cubeArea side = cuboidArea side side side
+
+cuboidVolume :: Float -> Float -> Float -> Float
+cuboidVolume a b c = rectangleArea a b * c
+
+cuboidArea :: Float -> Float -> Float -> Float
+cuboidArea a b c = rectangleArea a b * 2 + rectangleArea a c * 2 + rectangleArea c b * 2
+
+rectangleArea :: Float -> Float -> Float
+rectangleArea a b = a * b
+#+end_src
+
+Now you can do an
+#+begin_src haskell
+import Geometry
+#+end_src
+
+You can also have hierarchical structures to modules
+
+We have a folder called ~Geometry~ that has three files
+
+~Sphere.hs~:
+#+begin_src haskell
+module Geometry.Sphere
+( volume
+, area
+) where
+
+volume :: Float -> Float
+volume radius = (4.0 / 3.0) * pi * (radius ^ 3)
+
+area :: Float -> Float
+area radius = 4 * pi * (radius ^ 2)
+#+end_src
+
+~Cuboid.hs~
+#+begin_src haskell
+module Geometry.Cuboid
+( volume
+, area
+) where
+
+volume :: Float -> Float -> Float -> Float
+volume a b c = rectangleArea a b * c
+
+area :: Float -> Float -> Float -> Float
+area a b c = rectangleArea a b * 2 + rectangleArea a c * 2 + rectangleArea c b * 2
+
+rectangleArea :: Float -> Float -> Float
+rectangleArea a b = a * b
+#+end_src
+
+and ~Cube.hs~
+#+begin_src haskell
+module Geometry.Cube  
+( volume  
+, area  
+) where
+
+import qualified Geometry.Cuboid as Cuboid
+
+volume :: Float -> Float
+volume side = Cuboid.volume side side side
+
+area :: Float -> Float
+area side = Cuboid.area side side side
+#+end_src
+
+Now you can do
+#+begin_src haskell
+import Geometry.Cube
+#+end_src

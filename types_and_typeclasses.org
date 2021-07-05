@@ -1,0 +1,124 @@
+#+TITLE: Types and Typeclasses
+
+* Believe the type
+You can check the type of things in GHCI with ~:t~
+#+begin_src haskell
+:t (True, 'a')
+#+end_src
+
+#+RESULTS:
+| True | a |
+
+Unfortunately emacs doesn't show the type from GHCI 😭
+
+It is considered good practice to give all function definitions types before declaring them (unless they are short)
+#+begin_src haskell
+removeNonUppercase :: [Char] -> [Char]
+removeNonUppercase st = [ c | c <- st, c `elem` ['A'..'Z']]
+removeNonUppercase "hiHELLO"
+#+end_src
+
+#+RESULTS:
+: Prelude> "HELLO"
+
+For many types you use the ~->~ operator
+#+begin_src haskell
+addThree :: Int -> Int -> Int -> Int
+addThree x y z = x + y + z
+addThree 1 2 3
+#+end_src
+
+#+RESULTS:
+: Prelude> 6
+
+Here are some common types
+- ~Int~ represents whole numbers
+- ~Integer~ is for big ints
+- ~Float~ for single precision
+- ~Double~ for double precision
+- ~Bool~ for boolean types
+- ~Char~ for characters
+- ~String~ is an alias for ~[Char]~
+
+* Type Variables
+Types of functions can be variable! For example, the ~head~ function has type ~head :: [a] -> a~ where ~a~ is a type variable
+
+Notice that types are capitalized and type variables are lowercase for their first characters
+
+We can see that the ~==~ function has the following type
+#+begin_quote
+ghci> :t (==)
+(==) :: (Eq a) => a -> a -> Bool
+#+end_quote
+
+That type uses typeclasses!
+
+Everything before ~=>~ is a class constraint!
+
+Some common typeclasses:
+- ~Eq~ is used for equality checking
+- ~Ord~ is for types that have an ordering
+  the ~compare~ function uses ~Ord~ to compare things:
+  #+begin_src haskell
+"Abrakadabra" `compare` "Zebra"
+  #+end_src
+
+  #+RESULTS:
+  : LT
+- ~Show~ means the type can be represented as a string
+  #+begin_src haskell
+show 3
+  #+end_src
+
+  #+RESULTS:
+  : 3
+- ~Read~ means a string can be converted into a type that is ~Read~
+  #+begin_src haskell
+read "True" || False
+  #+end_src
+
+  #+RESULTS:
+  : True
+
+  You need a type annotation where the compiler cannot infer the type that you want to use ~Read~ with
+  #+begin_src haskell
+read "5" :: Int
+  #+end_src
+
+  #+RESULTS:
+  : 5
+- ~Enum~ members are sequentially ordered types. This is useful for list ranges
+  #+begin_src haskell
+['a'..'e']
+  #+end_src
+
+  #+RESULTS:
+  : abcde
+- ~Bounded~ members have upper and lower bounds
+  #+begin_src haskell
+minBound :: Int
+  #+end_src
+
+  #+RESULTS:
+  : -9223372036854775808
+
+  Tuples are also part of ~Bounded~
+  #+begin_src haskell
+maxBound :: (Bool, Int, Char)
+  #+end_src
+
+  #+RESULTS:
+  | True | 9223372036854775807 | \1114111 |
+- ~Num~ is for numeric values and how the compiler can sustitute things like ~Int~ and ~Integer~ and ~Float~
+- ~Integral~ is for whole numbers only aka just ~Int~ and ~Integer~
+- ~Floating~ is for floating types only
+
+~fromIntegral~ allows us to take an ~Integral~ number and make it more generic
+
+it has the type signature of ~fromIntegral :: (Num b, Integral a) => a -> b~
+#+begin_src haskell
+fromIntegral (length [1,2,3,4]) + 3.2
+#+end_src
+
+#+RESULTS:
+: 7.2

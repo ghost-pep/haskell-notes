@@ -1,0 +1,131 @@
+#+TITLE: Recursion
+
+* Hello Recursion!
+Its recursion lol
+* Maximum Awesome
+We can use recursion to solve all our imperative problems the haskell way!
+#+begin_src haskell
+:{
+maximum' :: (Ord a) => [a] -> a
+maximum' [] = error "maximum of empty list"
+maximum' [x] = x
+maximum' (x:xs)
+    | x > maxTail = x
+    | otherwise = maxTail
+    where maxTail = maximum' xs
+:}
+maximum' [1,4,2]
+#+end_src
+
+#+RESULTS:
+: 4
+
+This is even cleaner when we use the ~max~ function
+#+begin_src haskell
+:{
+maximum' :: (Ord a) => [a] -> a
+maximum' [] = error "maximum of empty list"
+maximum' [x] = x
+maximum' (x:xs) = max x (maximum' xs)
+:}
+maximum' [1,4,2]
+#+end_src
+
+#+RESULTS:
+: 4
+
+More fun
+#+begin_src haskell
+:{
+replicate' :: (Num i, Ord i) => i -> a -> [a]
+replicate' n x
+    | n <= 0    = []
+    | otherwise = x:replicate' (n-1) x
+:}
+replicate' 3 5
+#+end_src
+
+#+RESULTS:
+| 5 | 5 | 5 |
+
+We can also now implement ~take~
+#+begin_src haskell
+:{
+take' :: (Num i, Ord i) => i -> [a] -> [a]
+take' n _
+    | n <= 0   = []
+take' _ []     = []
+take' n (x:xs) = x : take' (n-1) xs
+:}
+take' 3 [5,4,3,2,1]
+#+end_src
+
+#+RESULTS:
+| 5 | 4 | 3 |
+
+We can implement reverse but also notice that we can reverse infinite lists so we don't really have an edge condition to stop recursion
+#+begin_src haskell
+:{
+reverse' :: [a] -> [a]
+reverse' [] = []
+reverse' (x:xs) = reverse' xs ++ [x]
+:}
+reverse' [1,2,3]
+#+end_src
+
+#+RESULTS:
+| 3 | 2 | 1 |
+
+More with infinite lists... We can return them!
+#+begin_src haskell
+:{
+repeat' :: a -> [a]
+repeat' x = x:repeat' x
+:}
+take 10 (repeat' 3)
+#+end_src
+
+#+RESULTS:
+| 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+
+You can have multiple base cases
+#+begin_src haskell
+:{
+zip' :: [a] -> [b] -> [(a,b)]
+zip' _ [] = []
+zip' [] _ = []
+zip' (x:xs) (y:ys) = (x,y):zip' xs ys
+:}
+zip' [1,2,3] ['a','b']
+#+end_src
+
+#+RESULTS:
+| 1 | a |
+| 2 | b |
+
+Finally we can implement ~elem~
+#+begin_src haskell
+:{
+elem' :: (Eq a) => a -> [a] -> Bool
+elem' a [] = False
+elem' a (x:xs)
+    | a == x    = True
+    | otherwise = a `elem'` xs
+:}
+#+end_src
+* Quick, sort!
+Double recursion time
+#+begin_src haskell
+:{
+quicksort :: (Ord a) => [a] -> [a]
+quicksort [] = []
+quicksort (x:xs) =
+    let smallerSorted = quicksort [a | a <- xs, a <= x]
+        biggerSorted = quicksort [a | a <- xs, a > x]
+    in  smallerSorted ++ [x] ++ biggerSorted
+:}
+quicksort [10,2,5,3,1,6,7,4,2,3,4,8,9]
+#+end_src
+
+#+RESULTS:
+| 1 | 2 | 2 | 3 | 3 | 4 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
