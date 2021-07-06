@@ -166,9 +166,84 @@ You can have value constructors take values and make a value. You can also have 
 data Maybe a = Nothing | Just a
 #+end_src
 
-Here, a is the type parameter
+Here, a is the type parameter and that makes Maybe a type constructor. Maybe itself is not a type but if we pass Maybe 'a' then the type is ~Maybe Char~
+
+Lists are actually type constructors because they have types like ~[Int]~
+
+The type of ~Nothing~ is ~Maybe a~ which is polymorphic
+
+You could see this being useful for implementing a Map type. But you have to be careful... it would seem like you would want this:
+#+begin_src haskell
+data (Ord k) => Map k v = ...
+#+end_src
+
+But haskell strongly recommends against putting type constraints in data definitions so that functions that require the data definition can individually do that
+An example would be toList not needing to compare keys because it just maps to a list
+
+Let's implement a 3D vector type that can support many numeric types
+#+begin_src haskell
+:{
+data Vector a = Vector a a a deriving (Show)
+
+vplus :: (Num t) => Vector t -> Vector t -> Vector t
+(Vector i j k) `vplus` (Vector l m n) = Vector (i+l) (j+m) (k+n)
+
+vectMult :: (Num t) => Vector t -> t -> Vector t
+(Vector i j k) `vectMult` m = Vector (i*m) (j*m) (k*m)
+
+scalarMult :: (Num t) => Vector t -> Vector t -> t
+(Vector i j k) `scalarMult` (Vector l m n) = i*l + j*m + k*n
+:}
+Vector 3 5 8 `vplus` Vector 9 2 8
+Vector 2 9 3 `vectMult` (Vector 4 9 5 `scalarMult` Vector 9 2 4)
+#+end_src
+
+#+RESULTS:
+: Vector 148 666 222
+
+Notice that the type of the vector is ~Vector t~ whereas when we use it as a value we use all 3 numbers
 
 * Derived instances
+We have already seen typeclasses like ~Ord~. We will get around to implementing the functions needed to conform to a typeclass, but for now we can have haskell do the implementation for us
+
+We can use deriving for that!
+
+#+begin_src haskell
+:{
+data Person = Person { firstName :: String
+                     , lastName :: String
+                     , age :: Int
+                     } deriving (Eq)
+:}
+let mikeD = Person {firstName = "Michael", lastName = "Diamond", age = 43}
+mikeD == Person {firstName = "Michael", lastName = "Diamond", age = 43}
+#+end_src
+
+#+RESULTS:
+: ghci> True
+
+~Show~ and ~Read~ are typeclasses for converting to and from string s
+#+begin_src haskell
+:{
+data Person = Person { firstName :: String
+                     , lastName :: String
+                     , age :: Int
+                     } deriving (Eq, Show, Read)
+:}
+let mikeD = Person {firstName = "Michael", lastName = "Diamond", age = 43}
+mikeD
+#+end_src
+
+#+RESULTS:
+: ghci> Person {firstName = "Michael", lastName = "Diamond", age = 43}
+
+#+begin_src haskell
+read "Person {firstName =\"Michael\", lastName =\"Diamond\", age = 43}" :: Person
+#+end_src
+
+#+RESULTS:
+: Person {firstName = "Michael", lastName = "Diamond", age = 43}
+
 * Type synonyms
 * Recursive data structures
 * Typeclasses 102
