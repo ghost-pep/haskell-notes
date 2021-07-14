@@ -244,7 +244,91 @@ read "Person {firstName =\"Michael\", lastName =\"Diamond\", age = 43}" :: Perso
 #+RESULTS:
 : Person {firstName = "Michael", lastName = "Diamond", age = 43}
 
+You can also read parameterized types but you must specify the type with the ~::~ afterwards
+
+We can derive the ~Ord~ type. Values of the type defined first are ordered the lowest
+
+#+begin_src haskell
+data Bool = False | True deriving (Ord)
+#+end_src
+
+The ~Maybe~ type is defined in this way so that ~Nothing~ is less than ~Maybe a~. If you compare two Maybes then it compares the inner value
+
+We can use the ~Enum~ typeclass to make a type that takes no parameters (nullary) into a type that has predecessors and successors
+
+We can also use the ~Bounded~ typeclass to make a type have a lowest and highest value
+
+#+begin_src haskell
+:{
+data Day = Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday
+           deriving (Eq, Ord, Show, Read, Bounded, Enum)
+:}
+Wednesday
+minBound :: Day -- because of Bounded
+succ Monday -- because of Enum
+[minBound..maxBound] :: [Day] -- combining them!
+#+end_src
+
+#+RESULTS:
+| Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday |
+
 * Type synonyms
+We saw before that ~String~ and ~[Char]~ are the same type. This is done through type synonyms like so
+
+#+begin_src haskell
+type String = [Char]
+#+end_src
+
+Before we had a phone book like the following:
+#+begin_src haskell
+phoneBook :: [(String,String)]
+phoneBook =
+    [("betty","555-2938")
+    ,("bonnie","452-2928")
+    ,("patsy","493-2928")
+    ,("lucille","205-2928")
+    ,("wendy","939-8282")
+    ,("penny","853-2492")
+    ]
+#+end_src
+
+That is not very easy to read the type. We can improve this with synonyms!
+
+#+begin_src haskell
+type PhoneNumber = String
+type Name = String
+type PhoneBook = [(Name,PhoneNumber)]
+#+end_src
+
+Redeclaring the ~String~ type is very common in haskell to convey extra information to programmers. We can use our new type to make a nicer function
+
+#+begin_src haskell
+inPhoneBook :: Name -> PhoneNumber -> PhoneBook -> Bool
+inPhoneBook name pnumber pbook = (name,pnumber) `elem` pbook
+#+end_src
+
+Type synonyms can be parameterized as well! We can make a type synonym and implement a function for it like so
+
+#+begin_src haskell
+type AssocList k v = [(k,v)]
+myFunc (Eq k) => k -> AssocList k v -> Maybe v
+#+end_src
+
+You can also partially apply type parameters to get new type constructors from them
+
+#+begin_src haskell
+type IntMap v = Map Int v
+type IntMap = Map Int
+#+end_src
+
+Note that types can only be used like this when we are in haskell's "type world." This is if we are in a ~data~ or ~type~ expression or if we are after a ~::~ which could be after a type declaration (like function definition) or type annotations (like annotating a list of numbers as a list of ints)
+
+We can now learn about the ~Either~ type
+
+#+begin_src haskell
+data Either a b = Left a | Right b deriving (Eq, Ord, Read, Show)
+#+end_src
+
 * Recursive data structures
 * Typeclasses 102
 * A yes-no typeclass
