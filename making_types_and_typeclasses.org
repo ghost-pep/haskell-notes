@@ -329,7 +329,167 @@ We can now learn about the ~Either~ type
 data Either a b = Left a | Right b deriving (Eq, Ord, Read, Show)
 #+end_src
 
+This lets us encapsulate two types into one. It is useful in the same way as ~Maybe~ but we can actually return something rather than nothing for an error
+
+~Left~ would be for erroring results and ~Right~ would be for actual success values
+
+We can see this through a locker example:
+
+#+begin_src haskell
+import qualified Data.Map as Map
+
+:{
+data LockerState = Taken | Free deriving (Show, Eq)
+type Code = String
+type LockerMap = Map.Map Int (LockerState, Code)
+
+lockerLookup :: Int -> LockerMap -> Either String Code
+lockerLookup lockerNumber map =
+    case Map.lookup lockerNumber map of
+        Nothing -> Left $ "Locker number " ++ show lockerNumber ++ " doesn't exist!"
+        Just (state, code) -> if state /= Taken
+                                then Right code
+                                else Left $ "Locker " ++ show lockerNumber ++ " is already taken!"
+
+lockers :: LockerMap
+lockers = Map.fromList
+    [(100,(Taken,"ZD39I"))
+    ,(101,(Free,"JAH3I"))
+    ,(103,(Free,"IQSA9"))
+    ,(105,(Free,"QOTSA"))
+    ,(109,(Taken,"893JJ"))
+    ,(110,(Taken,"99292"))
+    ]
+:}
+#+end_src
+
+#+begin_src haskell
+lockerLookup 101 lockers
+#+end_src
+
+#+RESULTS:
+: Right "JAH3I"
+
+We could have used a ~Maybe~ but then we would not have the debug data in the ~Left~ results
+
 * Recursive data structures
+We can reference any type within a data structure, even the original type. This leads to recursive types which helps with things like linked lists
+
+We can use algebraic data types to make our own list with recursive data structures
+#+begin_src haskell
+data List a = Empty | Cons a (List a) deriving (Show, Read, Eq, Ord)
+#+end_src
+
+#+RESULTS:
+
+This can be better understood in record syntax:
+#+begin_src haskell
+data List a = Empty | Cons { listHead :: a, listTail :: List a} deriving (Show, Read, Eq, Ord)
+#+end_src
+
+~Cons~ is another word for ~:~ so this works just like the built-in lists
+
+We can use it now!
+#+begin_src haskell
+3 `Cons` (4 `Cons` (5 `Cons` Empty))
+#+end_src
+
+#+RESULTS:
+: Cons 3 (Cons 4 (Cons 5 Empty))
+
+We can define functions to be automatically infix by making them comprised of only special characters. This also applies to constructors
+
+#+begin_src haskell
+:{
+infixr 5 :-:
+data List a = Empty | a :-: (List a) deriving (Show, Read, Eq, Ord)
+:}
+3 :-: 4 :-: 5 :-: Empty
+#+end_src
+
+#+RESULTS:
+: 3 :-: (4 :-: (5 :-: Empty))
+
+Note the new syntax. That is a fixity declaration. A fixity states how an operator binds to left or right and also presidence like doing ~*~ before ~+~ (which would mean ~*~ is a higher number)
+
+We can make the ~++~ function for our lists now
+#+begin_src haskell
+:{
+infixr 5  .++
+(.++) :: List a -> List a -> List a
+Empty .++ ys = ys
+(x :-: xs) .++ ys = x :-: (xs .++ ys)
+a = 3 :-: 4 :-: 5 :-: Empty
+b = 6 :-: 7 :-: Empty
+:}
+a .++ b
+#+end_src
+
+#+RESULTS:
+: 3 :-: (4 :-: (5 :-: (6 :-: (7 :-: Empty))))
+
+We could do the pattern matching on ~(x :-: xs)~ because pattern matching is actually about matching constructors (and only constructors)
+
+We can now implement binary search trees! Seems like an algebraic data type is in order:
+#+begin_src haskell
+data Tree a = EmptyTree | Node a (Tree a) (Tree a) deriving (Show, Read, Eq)
+#+end_src
+
+#+RESULTS:
+
+For insertion, we have no mutability so we have to do something like ~a -> Tree a -> Tree a~ which works because haskell is lazy and garbage collected
+
+Lets make insert and a singleton function to generate a tree with one node:
+#+begin_src haskell
+:{
+singleton :: a -> Tree a
+singleton x = Node x EmptyTree EmptyTree
+
+treeInsert :: (Ord a) => a -> Tree a -> Tree a
+treeInsert x EmptyTree = singleton x
+treeInsert x (Node a left right)
+    | x == a = Node x left right
+    | x < a  = Node a (treeInsert x left) right
+    | x > a  = Node a left (treeInsert x right)
+:}
+#+end_src
+
+#+RESULTS:
+
+We can also make a pretty clean lookup function
+#+begin_src haskell
+:{
+treeElem :: (Ord a) => a -> Tree a -> Bool
+treeElem x EmptyTree = False
+treeElem x (Node a left right)
+    | x == a = True
+    | x < a  = treeElem x left
+    | x > a  = treeElem x right
+:}
+#+end_src
+
+#+RESULTS:
+
+Folding lists into the custom tree:
+#+begin_src haskell
+:{
+nums = [8,6,4,1,7,3,5]
+numsTree = foldr treeInsert EmptyTree nums
+:}
+numsTree
+#+end_src
+
+#+RESULTS:
+: Node 5 (Node 3 (Node 1 EmptyTree EmptyTree) (Node 4 EmptyTree EmptyTree)) (Node 7 (Node 6 EmptyTree EmptyTree) (Node 8 EmptyTree EmptyTree))
+
+And we can test our lookup function too
+#+begin_src haskell
+8 `treeElem` numsTree
+#+end_src
+
+#+RESULTS:
+: True
+
 * Typeclasses 102
 * A yes-no typeclass
 * The Functor typeclass
