@@ -491,6 +491,203 @@ And we can test our lookup function too
 : True
 
 * Typeclasses 102
+How to make our own typeclasses and make types instances of our typeclass by hand!
+
+When a type is an instance of a typeclass, we mean we can use the functions that the typeclass defines with that type
+
+~Eq~ defines the ~==~ and ~/=~ functions:
+#+begin_src haskell
+class Eq a where
+    (==) :: a -> a -> Bool
+    (/=) :: a -> a -> Bool
+    x == y = not (x /= y)
+    x /= y = not (x == y)
+#+end_src
+
+That defines ~Eq~ as a typeclass and ~a~ is the type of the type that is implementing this typeclass. It can be any lowercase word
+
+Then, we can define any number of functions associated with the typeclass. Actual implementations of the function type signatures are optional
+
+We can't do much with just a typeclass. Let's work on a Traffic Light:
+#+begin_src haskell
+data TrafficLight = Red | Yellow | Green
+#+end_src
+
+#+RESULTS:
+
+Note that we did not auto derive the typeclass for ~Eq~. We are going to handroll this one!
+#+begin_src haskell
+:{
+instance Eq TrafficLight where
+    Red == Red = True
+    Green == Green = True
+    Yellow == Yellow = True
+    _ == _ = False
+:}
+#+end_src
+
+#+RESULTS:
+
+The ~instance~ keyword lets us implement a typeclass for a type. We can define only the ~==~ part of the typeclass because we have defined ~==~ in terms of ~/=~ and vice-versa
+
+That is called the minimal complete definition for a typeclass
+
+We can also implement the ~Show~ typeclass:
+#+begin_src haskell
+:{
+instance Show TrafficLight where
+    show Red = "Red light"
+    show Yellow = "Yellow light"
+    show Green = "Green light"
+:}
+#+end_src
+
+#+RESULTS:
+
+And now we can play with our creation!
+#+begin_src haskell
+Red == Red
+Red == Yellow
+[Red, Yellow, Green]
+#+end_src
+
+#+RESULTS:
+| Red | light | Yellow | light | Green | light |
+
+You can also make typeclasses that are subclasses of other typeclasses
+#+begin_src haskell
+class (Eq a) => Num a where
+  ...
+#+end_src
+
+We can see that we add a class constraint onto this definition for the ~Num~ typeclass. A ~Num~ must be of ~Eq~ before it becomes a ~Num~
+
+You cannot create a typeclass that works on ~Maybe~ because it is not a concrete type. It's a type constructor that takes a type parameter to build a concrete type
+
+The following does not make sense:
+#+begin_src haskell
+instance Eq Maybe where
+  ...
+#+end_src
+
+We can try with the whole thing like so:
+#+begin_src haskell
+instance Eq (Maybe m) where
+    Just x == Just y = x == y
+    Nothing == Nothing = True
+    _ == _ = False
+#+end_src
+
+But notice that we do an ~==~ on the ~m~ type while we have not defined the inner type to implement ~Eq~! We can fix that like so:
+#+begin_src haskell
+instance (Eq m) => Eq (Maybe m) where
+    Just x == Just y = x == y
+    Nothing == Nothing = True
+    _ == _ = False
+#+end_src
+
+#+begin_quote
+Most of the times, class constraints in class declarations are used for making a typeclass a subclass of another typeclass and class constraints in instance declarations are used to express requirements about the contents of some type. For instance, here we required the contents of the Maybe to also be part of the Eq typeclass.
+#+end_quote
+
+You can check the instances of a typeclass by doing ~:info YourTypeClass~ in GHCI
+#+begin_src haskell
+:info Num
+#+end_src
+
+#+RESULTS:
+#+begin_example
+type Num :: * -> Constraint
+class Num a where
+  (+) :: a -> a -> a
+  (-) :: a -> a -> a
+  (*) :: a -> a -> a
+  negate :: a -> a
+  abs :: a -> a
+  signum :: a -> a
+  fromInteger :: Integer -> a
+  {-# MINIMAL (+), (*), abs, signum, fromInteger, (negate | (-)) #-}
+  	-- Defined in ‘GHC.Num’
+instance Num Word -- Defined in ‘GHC.Num’
+instance Num Integer -- Defined in ‘GHC.Num’
+instance Num Int -- Defined in ‘GHC.Num’
+instance Num Float -- Defined in ‘GHC.Float’
+instance Num Double -- Defined in ‘GHC.Float’
+#+end_example
+
+Super useful!!
+
 * A yes-no typeclass
+JS is famous for evaluating variables as bools when they are not. We can mimic that behavior in haskell with a custom typeclass
+
+#+begin_src haskell
+:{
+class YesNo a where
+    yesno :: a -> Bool
+:}
+#+end_src
+
+#+RESULTS:
+
+Now we can implement JS-like semantics with instances of our typeclass:
+#+begin_src haskell
+:{
+instance YesNo Int where
+    yesno 0 = False
+    yesno _ = True
+
+instance YesNo [a] where
+    yesno [] = False
+    yesno _ = True
+
+instance YesNo Bool where
+    yesno = id
+
+instance YesNo (Maybe a) where
+    yesno (Just _) = True
+    yesno Nothing = False
+
+instance YesNo TrafficLight where
+    yesno Red = False
+    yesno _ = True
+:}
+yesno Red
+#+end_src
+
+#+RESULTS:
+: False
+
+~id~ is a standard lib function to pass input to output AKA the identity function
+
 * The Functor typeclass
+This is a typeclass that is used for things that can be mapped over.
+
+#+begin_src haskell
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b
+#+end_src
+
+Previous typeclasses had concrete types for the variable that played the role of a type. In this case, we have a type constructor that takes one parameter. This allows us to generalize ~map~ from just lists to any type. In fact, ~map~ is the implementation of ~fmap~ for lists!
+
+#+begin_src haskell
+instance Functor [] where
+    fmap = map
+#+end_src
+
+Notice that we did not use ~[a]~ because functor takes a type constructor that takes a single parameter. ~[]~ needs the ~a~ so ~[]~ is a type constructor!
+
+~Maybe~ can also be a ~Functor~!
+#+begin_src haskell
+instance Functor Maybe where
+    fmap f (Just x) = Just (f x)
+    fmap f Nothing = Nothing
+#+end_src
+
+And we can get funky by implementing ~Functor~ for our ~Tree~ type we made above:
+#+begin_src haskell
+instance Functor Tree where
+    fmap f EmptyTree = EmptyTree
+    fmap f (Node x leftsub rightsub) = Node (f x) (fmap f leftsub) (fmap f rightsub)
+#+end_src
+
 * Kinds and some type-foo
