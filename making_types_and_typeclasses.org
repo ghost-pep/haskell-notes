@@ -690,4 +690,89 @@ instance Functor Tree where
     fmap f (Node x leftsub rightsub) = Node (f x) (fmap f leftsub) (fmap f rightsub)
 #+end_src
 
+~Either a b~ can be made a ~Functor~ too! We just leave out the ~b~
+#+begin_src haskell
+instance Functor (Either a) where
+    fmap f (Right x) = Right (f x)
+    fmap f (Left x) = Left x
+#+end_src
+
+One thing to note that we will cover later is functor laws... basically there are some extra identities that we must conform to to have a pure functor
+
+Think passing the identity function to an ~fmap~ and you get a different structure than the original one
+
 * Kinds and some type-foo
+Types are basically labels that follow values around so we can reason about them. But types also have their own labels called /kinds/. They are like the type of a type
+
+We can examine the kind of a type using GHCI:
+#+begin_src haskell
+:k Int
+#+end_src
+
+#+RESULTS:
+: Prelude> Int :: *
+
+A ~*~ means it is a concrete type. Values must have types that are of kind ~*~. We can also have other kinds for non-concrete types:
+#+begin_src haskell
+:k Maybe
+#+end_src
+
+#+RESULTS:
+: Maybe :: * -> *
+
+This means ~Maybe~ takes a concrete type and produces a concrete type. Like ~Int~ and produces ~Maybe Int~, which is concrete now
+
+#+begin_src haskell
+:k Maybe Int
+#+end_src
+
+#+RESULTS:
+: Maybe Int :: *
+
+We have currying with type constructors 🤯
+#+begin_src haskell
+:k Either
+#+end_src
+
+#+RESULTS:
+: Either :: * -> * -> *
+
+#+begin_src haskell
+:k Either Int
+#+end_src
+
+#+RESULTS:
+: Either Int :: * -> *
+
+Weird type stuff:
+#+begin_src haskell
+class Tofu t where
+    tofu :: j a -> t a j
+#+end_src
+
+#+begin_quote
+Because j a is used as the type of a value that the tofu function takes as its parameter, j a has to have a kind of *. We assume * for a and so we can infer that j has to have a kind of * -> *. We see that t has to produce a concrete value too and that it takes two types. And knowing that a has a kind of * and j has a kind of * -> *, we infer that t has to have a kind of * -> (* -> *) -> *. So it takes a concrete type (a), a type constructor that takes one concrete type (j) and produces a concrete type. Wow.
+#+end_quote
+
+See the chapter for a good explanation of this
+
+We can also do stuff with the following:
+#+begin_src haskell
+data Barry t k p = Barry { yabba :: p, dabba :: t k }
+#+end_src
+
+#+RESULTS:
+
+Lets make it an instance of ~Functor~ which needs a ~* -> *~ kind. Lets examine the kind of ~Barry~
+#+begin_src haskell
+:k Barry
+#+end_src
+
+#+RESULTS:
+: Barry :: (* -> *) -> * -> * -> *
+
+And now we can make our ~fmap~
+#+begin_src haskell
+instance Functor (Barry a b) where
+    fmap f (Barry {yabba = x, dabba = y}) = Barry {yabba = f x, dabba = y}
+#+end_src
