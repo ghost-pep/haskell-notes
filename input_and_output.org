@@ -1,0 +1,285 @@
+#+TITLE: Input And Output
+
+* Hello World
+We can do it! We put the following in [[./helloworld.hs][a hello world file]]
+#+begin_src haskell
+main = putStrLn "hello, world"
+#+end_src
+
+We can compile with ~ghc --make helloworld~
+
+We can run it without compiling with ~runhaskell helloworld.hs~
+
+Lets examine ~putStrLn~
+#+begin_src haskell
+:t putStrLn
+#+end_src
+
+#+RESULTS:
+: putStrLn :: String -> IO ()
+
+It takes in a string and returns an IO action that has a result type of ~()~
+
+We can use ~do~ syntax to glue together several IO actions at once
+#+begin_src haskell
+main = do
+    putStrLn "Hello, what's your name?"
+    name <- getLine
+    putStrLn ("Hey " ++ name ++ ", you rock!")
+#+end_src
+
+By putting a bunch of IO operations in a do statement, we combine them into one IO action. The type is ~IO ()~ because that is the type of the last IO action in the ~do~ statement
+
+We also had the weird line ~name <- getLine~. We can examine the type of getLine:
+#+begin_src haskell
+:t getLine
+#+end_src
+
+#+RESULTS:
+: getLine :: IO String
+
+The ~<-~ construct allows us to take the IO result and break it back down into its data type
+
+Because IO reads like that can be tainted, they are required to be within another IO action (main in this case). This separates our IO actions (tainted code) from our pure functions
+
+This makes the following code illegal because it would mix impure IO with a pure String:
+#+begin_src haskell
+nameTag = "Hello, my name is " ++ getLine
+#+end_src
+
+In this case, foo would be of type ~()~ but we can also omit the ~<-~ because its literally nothing
+#+begin_src haskell
+main = do
+    foo <- putStrLn "Hello, what's your name?"
+    name <- getLine
+    putStrLn ("Hey " ++ name ++ ", you rock!")
+#+end_src
+
+You can compose IO actions with nested ~do~ blocks as long as eventually they all reach the main function
+
+We can also use ~let~ without an ~in~ clause in do blocks do add some pure haskell in the do block:
+#+begin_src haskell
+import Data.Char
+
+main = do
+    putStrLn "What's your first name?"
+    firstName <- getLine
+    putStrLn "What's your last name?"
+    lastName <- getLine
+    let bigFirstName = map toUpper firstName
+        bigLastName = map toUpper lastName
+    putStrLn $ "hey " ++ bigFirstName ++ " " ++ bigLastName ++ ", how are you?"
+#+end_src
+
+We can write a program now to loop forever and reverse words from stdin [[./reversewords.hs][here]]
+
+If statements in main have to be of the form ~if condition then IO action else IO action~ so that it is an IO action either way
+
+We can recursively call main in that function because main is an IO operation
+
+The ~return~ in Haskell is nothing like other languages. In this case, it wraps a pure value in an IO action
+It does not return from the function. It only does the wrapping so we can write something like this and have it execute to completion:
+#+begin_src haskell
+main = do
+    return ()
+    return "HAHAHA"
+    line <- getLine
+    return "BLAH BLAH BLAH"
+    return 4
+    putStrLn line
+#+end_src
+
+So basically this is valid but impractical:
+#+begin_src haskell
+main = do
+    a <- return "hell"
+    b <- return "yeah!"
+    putStrLn $ a ++ " " ++ b
+#+end_src
+
+And equivalent to this, which is the cleaner way to write it:
+#+begin_src haskell
+main = do
+    let a = "hell"
+        b = "yeah"
+    putStrLn $ a ++ " " ++ b
+#+end_src
+
+Now we can survey useful functions for dealing with IO before we move to files:
+- ~putStr~ does not print a newline
+- ~putChar~ is single char with no newline
+  putStr is actually implemented with this function:
+  #+begin_src haskell
+putStr :: String -> IO ()
+putStr [] = return ()
+putStr (x:xs) = do
+    putChar x
+    putStr xs
+  #+end_src
+- ~print~ is basically ~putStrLn . show~ so it will print out things other than strings
+- ~getChar~ gets a character but it is worth it to note that input is buffered by the return key from users
+- ~when~ is from ~Control.Monad~ and takes a boolean value and an IO action. It returns the IO action if the bool is true, and returns ~return ()~ if the bool is false
+  This is useful for stuff like this:
+  #+begin_src haskell
+import Control.Monad
+
+main = do
+    c <- getChar
+    when (c /= ' ') $ do
+        putChar c
+        main
+  #+end_src
+- ~sequence~ takes a list of IO actions and returns an IO action that performs them in sequence
+  The following would be a list of IO actions instead of a single IO action without the sequence
+  #+begin_src haskell
+sequence (map print [1,2,3,4,5])
+  #+end_src
+
+  #+RESULTS:
+  : 1
+  : 2
+  : 3
+  : 4
+  : 5
+  : [(),(),(),(),()]
+- ~mapM~ and ~mapM_~ were introduced to do what we did above. They basically wrap map in a sequence. ~mapM_~ throws away the IO action result
+  #+begin_src haskell
+mapM_ print [1,2,3]
+  #+end_src
+
+  #+RESULTS:
+  : 1
+  : 2
+  : 3
+- ~forever~ takes an IO action and returns an IO action that repeats the IO action it got forever. It is located in ~Control.Monad~
+- ~forM~ (in ~Control.Monad~) is like ~mapM~ but the parameters are switched around
+  We can see it being useful like so:
+  #+begin_src haskell
+import Control.Monad
+
+main = do
+    colors <- forM [1,2,3,4] (\a -> do
+        putStrLn $ "Which color do you associate with the number " ++ show a ++ "?"
+        color <- getLine
+        return color)
+    putStrLn "The colors that you associate with 1, 2, 3 and 4 are: "
+    mapM putStrLn colors
+  #+end_src
+
+* Files and streams
+Now we can learn about ~getContents~. It reads from stdin until it gets EOF. It is also lazy!!!
+
+We can see its laziness through [[./capslocker.hs][the capslocker program]]
+#+begin_src bash
+echo "wow this is big text now i am so excited to write haskell" | runhaskell ./capslocker.hs
+#+end_src
+
+#+RESULTS:
+: WOW THIS IS BIG TEXT NOW I AM SO EXCITED TO WRITE HASKELL
+
+We can make a program that filters lines for shorter than 10 characters. Notice how our IO actions section (impure code) is minimized:
+#+begin_src haskell
+main = do
+    contents <- getContents
+    putStr (shortLinesOnly contents)
+
+shortLinesOnly :: String -> String
+shortLinesOnly input =
+    let allLines = lines input
+        shortLines = filter (\line -> length line < 10) allLines
+        result = unlines shortLines
+    in  result
+#+end_src
+
+It is so common to take input and run a pure function on it and then print it out that we have a function for it: ~interact~!
+
+Here is a rewrite of our program:
+#+begin_src haskell
+main = interact shortLinesOnly
+
+shortLinesOnly :: String -> String
+shortLinesOnly input =
+    let allLines = lines input
+        shortLines = filter (\line -> length line < 10) allLines
+        result = unlines shortLines
+    in  result
+#+end_src
+
+And if we want something super unreadable but clean we can rewrite again with some function composition:
+#+begin_src haskell
+main = interact $ unlines . filter ((<10) . length) . lines
+#+end_src
+
+Lets make a program to detect palindromes on inputted lines:
+#+begin_src haskell
+main = interact respondPalindromes
+
+respondPalindromes = unlines . map (\xs -> if isPalindrome xs then "palindrome" else "not a palindrome") . lines
+    where   isPalindrome xs = xs == reverse xs
+#+end_src
+
+We already have been doing file IO through stdin and stdout...
+
+We can use this [[./song_lyrics.hs][program]] to open the file ~girlfriend.txt~ and output its contents
+
+#+begin_src bash
+runhaskell ./song_lyrics.hs
+#+end_src
+
+#+RESULTS:
+| Hey! | Hey!  | You! | You! |             |     |      |
+| I    | don't | like | your | girlfriend! |     |      |
+| No   | way!  | No   | way! |             |     |      |
+| I    | think | you  | need | a           | new | one! |
+
+We have a new function called ~openFile~ with the type signature of ~openFile :: FilePath -> IOMode -> IO Handle~
+~hGetContents~ takes a ~Handle~ and produces and ~IO String~
+Finally, we close the handle with ~hClose~
+
+Another way to do what we just did is with ~withFile~ which has a type signature of ~withFile :: FilePath -> IOMode -> (Handle -> IO a) -> IO a~
+#+begin_src haskell
+import System.IO
+
+main = do
+    withFile "girlfriend.txt" ReadMode (\handle -> do
+        contents <- hGetContents handle
+        putStr contents)
+#+end_src
+
+We can see an impl of ~withFile~ below:
+#+begin_src haskell
+withFile' :: FilePath -> IOMode -> (Handle -> IO a) -> IO a
+withFile' path mode f = do
+    handle <- openFile path mode
+    result <- f handle
+    hClose handle
+    return result
+#+end_src
+
+hGetLine, hPutStr, hPutStrLn, and hGetChar work just like their counterparts
+
+We have some functions to wrap around common operations
+
+~readFile~ abstracts a ton of our previous code:
+#+begin_src haskell
+import System.IO
+
+main = do
+    contents <- readFile "girlfriend.txt"
+    putStr contents
+#+end_src
+
+~writeFile~ takes a filename and a string and writes the string to a file. If the file exists it will be truncated
+#+begin_src haskell
+import System.IO
+import Data.Char
+
+main = do
+    contents <- readFile "girlfriend.txt"
+    writeFile "girlfriendcaps.txt" (map toUpper contents)
+#+end_src
+
+* Command line args
+* Randomness
+* Bytestrings
+* Exceptions
