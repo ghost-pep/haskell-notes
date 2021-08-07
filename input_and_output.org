@@ -279,7 +279,251 @@ main = do
     writeFile "girlfriendcaps.txt" (map toUpper contents)
 #+end_src
 
+~appendFile~ doesnt clobber like ~writeFile~
+
+All of these file IO stuffs is lazy. It usually buffers by line but you can change that with ~hSetBuffering~
+#+begin_src haskell
+main = do
+    withFile "something.txt" ReadMode (\handle -> do
+        hSetBuffering handle $ BlockBuffering (Just 2048)
+        contents <- hGetContents handle
+        putStr contents)
+#+end_src
+
+We can use ~hFlush~ to flush the handle and prevent laziness
+
+We can start getting fancy ooo
+#+begin_src haskell
+import System.IO
+import System.Directory
+import Data.List
+
+main = do
+    handle <- openFile "todo.txt" ReadMode
+    (tempName, tempHandle) <- openTempFile "." "temp"
+    contents <- hGetContents handle
+    let todoTasks = lines contents
+        numberedTasks = zipWith (\n line -> show n ++ " - " ++ line) [0..] todoTasks
+    putStrLn "These are your TO-DO items:"
+    putStr $ unlines numberedTasks
+    putStrLn "Which one do you want to delete?"
+    numberString <- getLine
+    let number = read numberString
+        newTodoItems = delete (todoTasks !! number) todoTasks
+    hPutStr tempHandle $ unlines newTodoItems
+    hClose handle
+    hClose tempHandle
+    removeFile "todo.txt"
+    renameFile tempName "todo.txt"
+#+end_src
+
+~openTempFile~ takes your file name and adds randomness to make sure you don't overwrite anything. It also provides you with the file name that is generated
+
+~removeFile~ and ~renameFile~ are from ~System.Directory~ and are used as you would think
+
 * Command line args
+~getArgs~ is of type ~getArgs :: IO [String]~ and gives the cli args
+~getProgName~ returns the program name
+
 * Randomness
+We have the ~System.Random~ module for randomness
+
+~random~ has the type signature of ~random :: (RandomGen g, Random a) => g -> (a, g)~
+~RandomGen~ is a typeclass for types that act as a source of randomness
+~Random~ is a typeclass for things that can take on random values
+
+~StdGen~ is one type for ~RandomGen~
+
+We can use ~mkStdGen~ to try to construct it
+#+begin_src haskell
+import System.Random
+random (mkStdGen 100)
+#+end_src
+
+#+RESULTS:
+| 9216477508314497915 | StdGen | (unStdGen = SMGen 712633246999323047 2532601429470541125) |
+
+The random function expects the Random typeclass to be made concrete so we have to make it so
+#+begin_src haskell
+random (mkStdGen 100) :: (Float, StdGen)
+#+end_src
+
+#+RESULTS:
+| 0.51772285 | StdGen | (unStdGen = SMGen 712633246999323047 2532601429470541125) |
+
+~randoms~ generates an infinite sequence from the generator
+#+begin_src haskell
+take 5 $ randoms (mkStdGen 11) :: [Bool]
+#+end_src
+
+#+RESULTS:
+| True | True | False | False | False |
+
+~randomR~ has the type signature of ~randomR :: (RandomGen g, Random a) :: (a, a) -> g -> (a, g)~ and takes an upper and lower bound for the produced random value
+#+begin_src haskell
+randomR (1,6) (mkStdGen 359353)
+#+end_src
+
+#+RESULTS:
+| 4 | StdGen | (unStdGen = SMGen 10995245518073353784 11826319359189470311) |
+
+~randomRs~ is the same but it produces an infinite list
+
+~getStdGen~ gets a truly random starting generator from the system. It returns an ~IO StdGen~ so you must use ~<-~ with it
+~newStdGen~ splits our current random number generator into two and updates the global random number generator with one and encapsulates the other as a result
+
+#+begin_src haskell
+import System.Random
+
+main = do
+    gen <- getStdGen
+    putStrLn $ take 20 (randomRs ('a','z') gen)
+    gen' <- newStdGen
+    putStr $ take 20 (randomRs ('a','z') gen')
+#+end_src
+
 * Bytestrings
+Strings are just ~[Char]~ which support unicode and other stuff, it also is lazy which can lead to some performance issues
+We fix this with bytestrings which only have one byte per element
+
+There are two types of bytestrings
+1. ~Data.ByteString~ is a strict bytestring which has no laziness at all. It has no promises so no infinite lists and also can fill up memory fast if the arrays are big
+2. ~Data.ByteString.Lazy~ are lazy but not quite as lazy as lists. They are lazy in chunks of 64K
+
+Bytestrings are very similar in API usage to lists but they use ~ByteString~ instead of ~[a]~ and they use ~Word8~ instead of ~a~
+
+Names can conflict so we do a qualified import
+#+begin_src haskell
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as S
+B.pack [99,97,110]
+#+end_src
+
+#+RESULTS:
+: Prelude System.Random B S> "can"
+
+The function ~pack~ looks like ~pack :: [Word8] -> ByteString~ and basically takes a lazy list and makes it less lazy
+
+~Empty~ is like ~[]~ for bytestrings
+
+~unpack~ is the reverse of ~pack~
+
+~fromChunks~ takes a list of strict bytestrings and unifies them into a lazy bytestring. ~toChunks~ does the opposite
+
+~cons~ lazily adds to the front of a bytestring so it will make a new chunk even if the front chunk is not full yet. Use ~cons'~ to do it in a strict way and will populate the first chunk if it can store more
+
+~empty~ makes an empty bytestring
+
+And a ton more functions like head, tail, init, null, length, map, reverse, foldl, foldr, concat, takeWhile, filter
+
+It also has an implementation of ~readFile~ so be careful if you read a file as a string bytestring because it will CHONK through memory on load
+
+It is common to write a program with strings and then if extra performance is needed, you can easily change them to use bytestrings and it go zooom
+
 * Exceptions
+IO is very common for exceptions because the outside world is impure and unreliable
+
+We can also get exceptions from common operations that are not covered by the type system. A good example is dividing by zero:
+#+begin_src haskell
+4 `div` 0
+#+end_src
+
+#+RESULTS:
+: *** Exception: divide by zero
+
+Note that this exception is generated by pure code! Pure code can generate exceptions but they are caught in IO code which always goes back to main. Because code is lazy we cant tell which code will generate exceptions so they all fall back to main
+
+Really try to use types like ~Maybe a~ or ~Either a b~ in pure code. It is much cleaner than having bloated error checking in our IO code
+
+Lets focus on handling exceptions from IO for that reason
+
+Imagine we write code like before but dont handle files not existing. We can solve this many ways
+
+One way is to check before using ~doesFileExist~ from ~System.Directory~
+
+Another way is to use the ~catch~ function from ~System.IO.Error~ which has the type ~catch :: IO a -> (IOError -> IO a) -> IO a~
+
+It takes an IO action and a handler. If the IO action generates an error then it runs the handler, if it is successful, then it passes the IO action as if no handler was registered
+
+Let's use it
+#+begin_src haskell
+import System.Environment
+import System.IO
+import System.IO.Error
+
+main = toTry `catch` handler
+
+toTry :: IO ()
+toTry = do (fileName:_) <- getArgs
+           contents <- readFile fileName
+           putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+
+handler :: IOError -> IO ()
+handler e = putStrLn "Whoops, had some trouble!"
+#+end_src
+
+That handles all errors, we need to handle just the error we want for a cleaner solution
+
+~isDoesNotExistError~ is a predicate over ~IOError~ (returns true or false)
+~ioError~ is a function to take an exception and throw it back out as an IO action (that throws another identical exception). Its type is ~ioError :: IOException -> IO a~
+
+We can fix the code by the following:
+#+begin_src haskell
+import System.Environment
+import System.IO
+import System.IO.Error
+
+main = toTry `catch` handler
+
+toTry :: IO ()
+toTry = do (fileName:_) <- getArgs
+           contents <- readFile fileName
+           putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+
+handler :: IOError -> IO ()
+handler e
+    | isDoesNotExistError e = putStrLn "The file doesn't exist!"
+    | otherwise = ioError e
+#+end_src
+
+The predicates that act on ~IOError~ are the following:
+- isAlreadyExistsError
+- isDoesNotExistError
+- isAlreadyInUseError
+- isFullError
+- isEOFError
+- isIllegalOperation
+- isPermissionError
+- isUserError
+
+We also get functions that start with ~ioe~ that let you pull data from an error like ~ioeGetFileName :: IOError -> Maybe FilePath~
+
+A full list is [[https://downloads.haskell.org/~ghc/6.10.1/docs/html/libraries/base/System-IO-Error.html#3][here]]
+
+We can see this in action here
+#+begin_src haskell
+import System.Environment
+import System.IO
+import System.IO.Error
+
+main = toTry `catch` handler
+
+toTry :: IO ()
+toTry = do (fileName:_) <- getArgs
+           contents <- readFile fileName
+           putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+
+handler :: IOError -> IO ()
+handler e
+    | isDoesNotExistError e =
+        case ioeGetFileName e of Just path -> putStrLn $ "Whoops! File does not exist at: " ++ path
+                                 Nothing -> putStrLn "Whoops! File does not exist at unknown location!"
+    | otherwise = ioError e
+#+end_src
+
+We can get more fine grained like so
+#+begin_src haskell
+main = do toTry `catch` handler1
+          thenTryThis `catch` handler2
+          launchRockets
+#+end_src
