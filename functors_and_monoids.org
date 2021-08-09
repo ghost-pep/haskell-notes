@@ -1,0 +1,73 @@
+#+TITLE: Functors and Monoids
+
+* Functors Redux
+We can apply functors to IO actions
+#+begin_src haskell
+instance Functor IO where
+    fmap f action = do
+        result <- action
+        return (f result)
+#+end_src
+
+This allows us to take this
+#+begin_src haskell
+main = do line <- getLine
+          let line' = reverse line
+          putStrLn $ "You said " ++ line' ++ " backwards!"
+          putStrLn $ "Yes, you really said" ++ line' ++ " backwards!"
+#+end_src
+
+And turn it into this
+#+begin_src haskell
+main = do line <- fmap reverse getLine
+          putStrLn $ "You said " ++ line ++ " backwards!"
+          putStrLn $ "Yes, you really said" ++ line ++ " backwards!"
+#+end_src
+
+We can even use function composition with this
+#+begin_src haskell
+import Data.Char
+import Data.List
+
+main = do line <- fmap (intersperse '-' . reverse . map toUpper) getLine
+          putStrLn line
+#+end_src
+
+We can also use functors with ~->~ which is kind of trippy
+We can see this below
+#+begin_src haskell
+instance Functor ((->) r) where
+    fmap f g = (\x -> f (g x))
+#+end_src
+
+If the syntax allowed for it we could have written it like so
+#+begin_src haskell
+instance Functor (r ->) where
+    fmap f g = (\x -> f (g x))
+#+end_src
+
+We can see that this is actually of type ~fmap :: (a -> b) -> (r -> a) -> (r -> b)~ which is equivalent to function composition(~.~)!
+
+Because of currying we can think of fmap like ~fmap :: (a -> b) -> (f a -> f b)~
+taking in ~a -> b~ and going to ~f a -> f b~ is called lifting a function
+
+~fmap (*2)~ is a lifted function that can take in any functor and modify the inner data
+
+Now lets look at functor laws
+#+begin_quote
+The first functor law states that if we map the id function over a functor, the functor that we get back should be the same as the original functor.
+#+end_quote
+
+#+begin_quote
+The second law says that composing two functions and then mapping the resulting function over a functor should be the same as first mapping one function over the functor and then mapping the other one
+#+end_quote
+
+This looks like ~fmap (f . g) = fmap f . fmap g~
+
+Conforming to the functor laws is super important for writing good code and also yielding some nice mathematical properties
+
+* Applicative Functors
+These are beefed up functors, represented by the ~Applicative~ typeclass found in ~Control.Applicative~
+
+* The newtype keyword
+* Monoids
