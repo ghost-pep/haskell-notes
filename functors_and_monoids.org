@@ -67,7 +67,194 @@ This looks like ~fmap (f . g) = fmap f . fmap g~
 Conforming to the functor laws is super important for writing good code and also yielding some nice mathematical properties
 
 * Applicative Functors
-These are beefed up functors, represented by the ~Applicative~ typeclass found in ~Control.Applicative~
+These are beefed up functors, represented by the ~Applicative~ typeclass found in ~Control.Applicative~. But you don't have to import them
+
+#+RESULTS:
+
+We can map functions with more than one parameter to functors. This results in functions
+
+#+begin_src haskell
+:t fmap (++) (Just "hey")
+#+end_src
+
+#+RESULTS:
+: fmap (++) (Just "hey") :: Maybe ([Char] -> [Char])
+
+The result is functors that contain functions in them
+
+We can map a function over these new functors
+#+begin_src haskell
+let a = fmap (*) [1,2,3,4]
+fmap (\f -> f 9) a
+#+end_src
+
+#+RESULTS:
+| 9 | 18 | 27 | 36 |
+
+But what if we have a ~Just (3 *)~ and want to take the function out of the functor and fmap it to ~Just 5~? This doesn't work in a general way without us having to manually pattern match the function out of the functor
+
+This is where the ~Applicative~ typeclass comes in handy
+#+begin_src haskell
+class (Functor f) => Applicative f where
+    pure :: a -> f a
+    (<*>) :: f (a -> b) -> f a -> f b
+#+end_src
+
+The class constraint forces f to be a functor with the type system
+The ~pure~ function allows us to take any value and "box" it in our functor
+The ~<*>~ function does what we wanted above. It kind of extracts the function and maps it over the second argument
+
+The implementation for ~Maybe~ is below:
+#+begin_src haskell
+instance Applicative Maybe where
+    pure = Just
+    Nothing <*> _ = Nothing
+    (Just f) <*> something = fmap f something
+
+pure (+3) <*> Just 10
+#+end_src
+
+#+RESULTS:
+: Prelude> Prelude> Prelude> Prelude> Just 13
+
+Nice! It works. Use ~pure~ only when dealing in an applicative context (aka with ~<*>~)
+
+This lets us apply a function that doesn't know about its params being wrapped in functors and then run it against them!
+
+We can also see that ~pure f <*> x~ is the same as ~fmap f x~
+This means ~pure f <*> x <*> y~ is the same as ~fmap f x <*> y~
+
+Because of this we get the following export from ~Applicative~
+#+begin_src haskell
+(<$>) :: (Functor f) => (a -> b) -> f a -> f b
+f <$> x = fmap f x
+#+end_src
+
+Now we can apply a function ~f~ over three applicative functors like ~f <$> x <*> y <*> z~ which would be ~f x y z~ if there were no functors wrapping the values
+
+#+begin_src haskell
+(++) <$> Just "johntra" <*> Just "volta"
+#+end_src
+
+#+RESULTS:
+: Just "johntravolta"
+
+#+begin_src haskell
+(++) "johntra" "volta"
+#+end_src
+
+#+RESULTS:
+: johntravolta
+
+Lists are applicative functors!
+#+begin_src haskell
+instance Applicative [] where
+    pure x = [x]
+    fs <*> xs = [f x | f <- fs, x <- xs]
+#+end_src
+
+#+begin_src haskell
+[(*0),(+100),(^2)] <*> [1,2,3]
+#+end_src
+
+#+RESULTS:
+| 0 | 0 | 0 | 101 | 102 | 103 | 1 | 4 | 9 |
+
+#+begin_src haskell
+[(+),(*)] <*> [1,2] <*> [3,4]
+#+end_src
+
+#+RESULTS:
+| 4 | 5 | 5 | 6 | 3 | 4 | 6 | 8 |
+
+Notice that list comprehension leads us to produce the full product of the two lists aka 9 results
+
+You can think of lists as nondeterministic computations because of laziness. Doing the above applicative operations on lists creates even lazier lists that are even more unsure about their results
+
+We can start to replace list comprehension with applicative functors!
+#+begin_src haskell
+[ x*y | x <- [2,5,10], y <- [8,10,11]]
+(*) <$> [2,5,10] <*> [8,10,11]
+#+end_src
+
+#+RESULTS:
+| 16 | 20 | 22 | 40 | 50 | 55 | 80 | 100 | 110 |
+
+Those are the same thing!
+
+~IO~ is applicative too
+#+begin_src haskell
+instance Applicative IO where
+    pure = return
+    a <*> b = do
+        f <- a
+        x <- b
+        return (f x)
+#+end_src
+
+So we can change this
+#+begin_src haskell
+myAction :: IO String
+myAction = do
+    a <- getLine
+    b <- getLine
+    return $ a ++ b
+#+end_src
+
+To this
+#+begin_src haskell
+myAction :: IO String
+myAction = (++) <$> getLine <*> getLine
+#+end_src
+
+OMG FUNCTIONS ARE APPLICATIVE
+
+This is mainly used for code golf but still its cool
+#+begin_src haskell
+instance Applicative ((->) r) where
+    pure x = (\_ -> x)
+    f <*> g = \x -> f x (g x)
+#+end_src
+
+#+begin_src haskell
+(pure 3) "blah"
+pure 3 "blah"
+#+end_src
+
+#+RESULTS:
+: 3
+
+Check this trippy stuff. Reference the book for how this works
+#+begin_src haskell
+(+) <$> (+3) <*> (*100) $ 5
+#+end_src
+
+#+RESULTS:
+: 508
+
+#+begin_quote
+You can think of functions as boxes that contain their eventual results, so doing k <$> f <*> g creates a function that will call k with the eventual results from f and g.
+#+end_quote
+
+There are multiple ways to implement ~Applicative~ for lists so they created a type for another implementation for lists that just wraps around a list called ~ZipList~
+#+begin_src haskell
+instance Applicative ZipList where
+        pure x = ZipList (repeat x)
+        ZipList fs <*> ZipList xs = ZipList (zipWith (\f x -> f x) fs xs)
+#+end_src
+
+The repeat creates an infinite list boxed by the ~ZipList~ type. We need this to zip it later with other ~ZipList~ values
+~getZipList~ just extracts a list out of a ziplist
+#+begin_src haskell
+import Control.Applicative
+getZipList $ (+) <$> ZipList [1,2,3] <*> ZipList [100,100..]
+#+end_src
+
+#+RESULTS:
+| 101 | 102 | 103 |
+
+#TODO
+~liftA2~
 
 * The newtype keyword
 * Monoids
